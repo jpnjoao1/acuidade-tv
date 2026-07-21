@@ -90,7 +90,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 7;
+const WEB_VERSION = 8;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -314,9 +314,12 @@ let W = 0, H = 0;
 // na vertical). O #root passa a ter largura=alturaDaTela e altura=larguraDaTela.
 function applyOrientation(){
   const vw = window.innerWidth, vh = window.innerHeight;
-  const port = store.orientation==='port';
-  root.classList.toggle('port', port);
-  if(port){
+  const physicalPortrait = store.orientation==='port';   // monitor montado na vertical
+  const framebufferPortrait = vh > vw;                    // a saída já está em retrato?
+  const needRotate = physicalPortrait !== framebufferPortrait; // só gira quando há divergência
+  // A classe .port controla o LAYOUT (colunas/centralização) e segue a orientação física.
+  root.classList.toggle('port', physicalPortrait);
+  if(needRotate){
     root.style.transformOrigin = '0 0';
     root.style.width  = vh+'px';
     root.style.height = vw+'px';
