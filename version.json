@@ -1,4 +1,4 @@
 {
-  "version": 5,
-  "notes": "Modo espelho (para salas com espelho) e ponteiro/isolamento de optótipo (fila → único com crowding → ponteiro) nas tabelas de letras."
+  "version": 6,
+  "notes": "Correção do modo vertical na tela de Exames: grade não é mais cortada quando tem muitos itens (centraliza quando cabe, rola quando não cabe)."
 }
