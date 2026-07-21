@@ -90,7 +90,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 8;
+const WEB_VERSION = 9;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -131,6 +131,7 @@ const TESTS = [
   { id:'MADDOX',   title:'Maddox',                short:'Maddox',       icon:'maddox',   sub:'Foria com vareta de Maddox.', scale:false, dark:true, glasses:'Vareta de Maddox sobre um olho.' },
   { id:'AMSLER',   title:'Grade de Amsler',       short:'Amsler',       icon:'amsler',   sub:'Triagem macular (distorções/escotoma).',       scale:false },
   { id:'ISHIHARA', title:'Visão de cores',        short:'Cores',        icon:'ishihara', sub:'Placas pseudoisocromáticas. Só triagem.',      scale:false },
+  { id:'BLANK',    title:'Tela branca',           short:'Tela branca',  icon:'blank',    sub:'Tela 100% branca.',                             scale:false },
 ];
 const SLOAN   = ['C','D','H','K','N','O','R','S','V','Z'];
 const SNELLEN = ['C','D','E','F','L','N','O','P','R','T','Z'];
@@ -183,6 +184,7 @@ const ICONS = {
   maddox: SVG('<circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>', STROKE),
   amsler: SVG('<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>', STROKE),
   mirror: SVG('<path d="M12 3v18"/><path d="M9 6l-4 3 4 3"/><path d="M15 6l4 3-4 3" opacity="0.5"/><path d="M5 9h14" opacity="0.4"/>', STROKE),
+  blank: SVG('<rect x="4" y="5" width="16" height="14" rx="2"/>', STROKE),
 };
 
 // =====================================================================================
@@ -903,6 +905,7 @@ function renderDist(){
 }
 
 function renderHud(){
+  if(S.test.id==='BLANK'){ hud.style.display='none'; warn.style.display='none'; return; } // 100% branca
   if(store.calibrated===false && S.test.scale){
     warn.textContent='⚠ Tela não calibrada — tamanho apenas aproximado. Calibre no menu.';
     warn.style.display='block';

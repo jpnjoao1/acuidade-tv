@@ -1,4 +1,4 @@
 {
-  "version": 8,
-  "notes": "Correção do modo vertical: o app só gira o conteúdo quando a saída está em paisagem. Se a TV já envia em retrato, mostra na posição certa sem girar (resolve grade amontoada)."
+  "version": 9,
+  "notes": "Novo exame: Tela branca (tela 100% branca, sem painel)."
 }
