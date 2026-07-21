@@ -1,4 +1,4 @@
 {
-  "version": 6,
-  "notes": "Correção do modo vertical na tela de Exames: grade não é mais cortada quando tem muitos itens (centraliza quando cabe, rola quando não cabe)."
+  "version": 7,
+  "notes": "Modo vertical na tela de Exames: centralização/rolagem robusta (margin auto) compatível com qualquer WebView."
 }
