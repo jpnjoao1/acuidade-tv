@@ -19,6 +19,8 @@
   .screen { position:absolute; inset:0; overflow:auto; color:var(--cream);
     background:radial-gradient(120% 95% at 50% -5%, #1b3a5b 0%, #0E2036 60%); }
   .wrap { min-height:100%; display:flex; flex-direction:column; align-items:center; padding:4vh 5vw 8vh; }
+  #root.port .wrap { justify-content:center; }
+  #root.port .backhint { position:absolute; }
   .logo-badge { height:15vh; max-height:120px; border-radius:14px; background:#FBF6F0;
     padding:8px 16px; box-shadow:0 6px 22px #0007; }
   .title { font-size:clamp(22px,2.6vw,32px); font-weight:700; color:#fff; margin:14px 0 2px; letter-spacing:.4px; }
@@ -86,7 +88,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 3;
+const WEB_VERSION = 4;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -253,8 +255,14 @@ function settingsItems(){
     { kind:'update',  label:'Atualização',           icon:'update' },
   ];
 }
-// Colunas da grade por tela.
-const GRID_COLS = { HOME:2, EXAMS:5, SETTINGS:3 };
+// Colunas da grade por tela (menos colunas no modo vertical).
+function gridCols(screen){
+  const p = store.orientation==='port';
+  if(screen==='HOME')     return p?1:2;
+  if(screen==='EXAMS')    return p?3:5;
+  if(screen==='SETTINGS') return p?2:3;
+  return 2;
+}
 
 // (Re)grava as configurações atuais no armazenamento local do app.
 function saveAllSettings(){
@@ -296,7 +304,9 @@ let W = 0, H = 0;
 // na vertical). O #root passa a ter largura=alturaDaTela e altura=larguraDaTela.
 function applyOrientation(){
   const vw = window.innerWidth, vh = window.innerHeight;
-  if(store.orientation==='port'){
+  const port = store.orientation==='port';
+  root.classList.toggle('port', port);
+  if(port){
     root.style.transformOrigin = '0 0';
     root.style.width  = vh+'px';
     root.style.height = vw+'px';
@@ -691,7 +701,7 @@ function renderHome(){
     <img class="logo-badge" src="logo.jpg" alt="Clínica da Visão Santa Luzia">
     <div class="title">Acuidade Visual</div>
     <div class="subtitle">CLÍNICA DA VISÃO SANTA LUZIA</div>
-    ${tileGrid(homeItems(), S.menuIndex, GRID_COLS.HOME, 'home2')}
+    ${tileGrid(homeItems(), S.menuIndex, gridCols('HOME'), 'home2')}
     <div class="backhint">◀ ▶ navegar &nbsp;•&nbsp; OK selecionar</div>
   </div></div>`;
   scrollSel();
@@ -701,7 +711,7 @@ function renderExams(){
   ui.innerHTML = `<div class="screen"><div class="wrap">
     <div class="title">Exames</div>
     <div class="subtitle">Selecione o teste de acuidade</div>
-    ${tileGrid(examItems(), S.examsIndex, GRID_COLS.EXAMS)}
+    ${tileGrid(examItems(), S.examsIndex, gridCols('EXAMS'))}
     <div class="backhint">◀ ▶ ▲ ▼ navegar &nbsp;•&nbsp; OK abrir &nbsp;•&nbsp; Voltar retorna</div>
   </div></div>`;
   scrollSel();
@@ -717,7 +727,7 @@ function renderSettings(){
     <div class="title">Configurações</div>
     <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela ${orient}${inches}</div>
     ${flash}
-    ${tileGrid(settingsItems(), S.settingsIndex, GRID_COLS.SETTINGS)}
+    ${tileGrid(settingsItems(), S.settingsIndex, gridCols('SETTINGS'))}
     <div class="backhint">◀ ▶ ▲ ▼ navegar &nbsp;•&nbsp; OK abrir &nbsp;•&nbsp; Voltar retorna</div>
   </div></div>`;
   scrollSel();
@@ -866,7 +876,7 @@ function openTest(t){
 function handle(key){
   if(S.screen==='HOME'){
     const items = homeItems();
-    const ni = gridNav(S.menuIndex, items.length, GRID_COLS.HOME, key);
+    const ni = gridNav(S.menuIndex, items.length, gridCols('HOME'), key);
     if(ni!==S.menuIndex){ S.menuIndex=ni; render(); return; }
     if(key==='ok'){
       const it=items[S.menuIndex];
@@ -878,7 +888,7 @@ function handle(key){
   }
   if(S.screen==='EXAMS'){
     const items = examItems();
-    const ni = gridNav(S.examsIndex, items.length, GRID_COLS.EXAMS, key);
+    const ni = gridNav(S.examsIndex, items.length, gridCols('EXAMS'), key);
     if(ni!==S.examsIndex){ S.examsIndex=ni; render(); return; }
     if(key==='ok'){ openTest(items[S.examsIndex].test); render(); }
     else if(key==='back'){ S.screen='HOME'; render(); }
@@ -886,7 +896,7 @@ function handle(key){
   }
   if(S.screen==='SETTINGS'){
     const sitems = settingsItems();
-    const ni = gridNav(S.settingsIndex, sitems.length, GRID_COLS.SETTINGS, key);
+    const ni = gridNav(S.settingsIndex, sitems.length, gridCols('SETTINGS'), key);
     if(ni!==S.settingsIndex){ S.settingsIndex=ni; S.savedFlash=false; render(); return; }
     if(key==='ok'){
       const it=sitems[S.settingsIndex];

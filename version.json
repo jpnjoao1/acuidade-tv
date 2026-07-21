@@ -1,4 +1,4 @@
 {
-  "version": 3,
-  "notes": "Novos exames: HOTV, Números LEA, Figuras, Pelli-Robson, Worth 4 pontos, Estereopsia, Schober, Maddox, Amsler. Dial astigmático com escala em graus; Contraste com acuidade."
+  "version": 4,
+  "notes": "Correção do modo vertical: grade com menos colunas e conteúdo centralizado; todos os itens acessíveis."
 }
