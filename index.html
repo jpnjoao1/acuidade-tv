@@ -6,58 +6,74 @@
 <title>Acuidade Visual — teste no PC</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #fff;
-    font-family: "Segoe UI", Roboto, Arial, sans-serif; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#0E2036;
+    font-family:"Segoe UI", Roboto, Arial, sans-serif; -webkit-font-smoothing:antialiased; }
   #root { position: fixed; inset: 0; }
-  canvas { position: absolute; inset: 0; display: none; }
-  #ui { position: absolute; inset: 0; }
+  canvas { position:absolute; inset:0; display:none; }
+  #ui { position:absolute; inset:0; }
 
-  /* ---- Paleta da marca (Clínica da Visão Santa Luzia) ---- */
-  :root { --cream:#FBF6F0; --gold:#C6A24C; --navy:#26375F; }
+  /* ---- Paleta (azul-escuro + dourado) ---- */
+  :root { --navy:#0E2036; --navy2:#17324F; --gold:#C6A24C; --gold2:#E3C77E; --cream:#F3E9D6; }
 
-  /* ---- HOME ---- */
-  .home { position:absolute; inset:0; background:var(--cream); color:var(--navy); padding:3vh 5vw; overflow:auto; }
-  .home .logo { display:block; margin:0 auto 6px; height:20vh; max-height:170px; }
-  .home h1 { font-size: 26px; margin-bottom: 4px; text-align:center; color:var(--navy); font-weight:600; }
-  .status { font-size: 17px; margin-bottom: 18px; text-align:center; }
-  .status.ok { color:#2E7D32; } .status.warn { color:#B8860B; }
-  .item { display:block; padding:11px 20px; margin:6px 0; border-radius:10px;
-    background:#26375F12; border:1px solid transparent; }
-  .item.sel { background:var(--gold); border-color:var(--navy); }
-  .item .t { font-size: 21px; color:var(--navy); }
-  .item.sel .t { font-weight: 700; }
-  .item .s { font-size: 14px; color:#26375Fbb; }
-  .item.sel .s { color:#3a2f12; }
-  .foot { margin-top:16px; font-size:15px; color:#26375F99; text-align:center; }
+  /* ---- fundo comum das telas de menu ---- */
+  .screen { position:absolute; inset:0; overflow:auto; color:var(--cream);
+    background:radial-gradient(120% 95% at 50% -5%, #1b3a5b 0%, #0E2036 60%); }
+  .wrap { min-height:100%; display:flex; flex-direction:column; align-items:center; padding:4vh 5vw 8vh; }
+  .logo-badge { height:15vh; max-height:120px; border-radius:14px; background:#FBF6F0;
+    padding:8px 16px; box-shadow:0 6px 22px #0007; }
+  .title { font-size:clamp(22px,2.6vw,32px); font-weight:700; color:#fff; margin:14px 0 2px; letter-spacing:.4px; }
+  .subtitle { font-size:15px; color:var(--gold2); margin-bottom:12px; letter-spacing:.3px; }
+  .status { font-size:15px; text-align:center; margin-bottom:6px; color:#cfe0f0; }
+  .status.ok { color:#8FE0A0; } .status.warn { color:var(--gold2); }
+  .backhint { position:fixed; bottom:20px; left:0; right:0; text-align:center; color:#8ea6c0; font-size:14px; }
 
-  /* ---- CALIBRAÇÃO / DISTÂNCIA / etc ---- */
-  .sheet { position:absolute; inset:0; background:var(--cream); color:var(--navy); }
-  .sheet .logo-sm { position:absolute; top:3vh; right:4vw; height:12vh; max-height:110px; opacity:.95; }
-  .sheet .info { position:absolute; top:5vh; left:5vw; max-width:60vw; }
-  .sheet h2 { font-size:28px; margin-bottom:10px; color:var(--navy); }
-  .sheet p { font-size:18px; margin:4px 0; }
-  .sheet .big { color:var(--gold); font-weight:700; }
+  /* ---- grade de ícones ---- */
+  .grid { display:grid; gap:20px; width:100%; max-width:1120px; margin-top:10px; }
+  .tile { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    padding:20px 10px; border-radius:18px; background:#ffffff0f; border:2px solid #ffffff12; }
+  .tile.sel { background:linear-gradient(160deg,var(--gold2),var(--gold)); border-color:#ffffffaa;
+    box-shadow:0 10px 28px #0008, 0 0 0 3px #C6A24C55; transform:translateY(-3px); }
+  .tile-ic { color:var(--gold); line-height:0; }
+  .tile-ic svg { width:clamp(38px,6.5vw,68px); height:clamp(38px,6.5vw,68px); display:block; }
+  .tile.sel .tile-ic { color:var(--navy); }
+  .tile-lb { font-size:clamp(14px,1.6vw,19px); font-weight:600; color:#eaf1fa; text-align:center; line-height:1.15; }
+  .tile.sel .tile-lb { color:var(--navy); font-weight:700; }
+  .tile-sub { font-size:12px; color:#a9bccf; text-align:center; }
+  .tile.sel .tile-sub { color:#33290f; }
+
+  .grid.home2 { grid-template-columns:repeat(2,1fr); max-width:780px; gap:34px; margin-top:26px; }
+  .grid.home2 .tile { padding:46px 16px; gap:16px; }
+  .grid.home2 .tile-ic svg { width:clamp(58px,11vw,104px); height:clamp(58px,11vw,104px); }
+  .grid.home2 .tile-lb { font-size:clamp(20px,2.6vw,30px); }
+
+  /* ---- telas de configuração ---- */
+  .sheet { position:absolute; inset:0; color:var(--cream);
+    background:radial-gradient(120% 95% at 50% -5%, #1b3a5b 0%, #0E2036 60%); }
+  .sheet .logo-sm { position:absolute; top:3vh; right:4vw; height:11vh; max-height:88px;
+    border-radius:12px; background:#FBF6F0; padding:6px 12px; box-shadow:0 4px 16px #0006; }
+  .sheet .info { position:absolute; top:6vh; left:6vw; max-width:62vw; }
+  .sheet h2 { font-size:30px; margin-bottom:12px; color:#fff; }
+  .sheet p { font-size:18px; margin:5px 0; color:#d7e3f0; }
+  .sheet .big { color:var(--gold2); font-weight:700; }
   .calibar { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    height:12px; background:#000; }
-  .calibar::before, .calibar::after { content:""; position:absolute; top:-28px; width:4px; height:68px; background:#000; }
+    height:12px; background:#fff; box-shadow:0 0 14px #fff6; }
+  .calibar::before, .calibar::after { content:""; position:absolute; top:-28px; width:4px; height:68px; background:#fff; }
   .calibar::before { left:0; } .calibar::after { right:0; }
-  .distbox { position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; }
-  .distbox .m { font-size:90px; font-weight:700; color:var(--navy); font-family:monospace; }
-  .distbox .cm { font-size:24px; color:#6b5c3a; }
-  .distbox .note { font-size:18px; color:#6b5c3a; margin-top:20px; }
-  .hint { position:absolute; bottom:24px; left:0; right:0; text-align:center;
-    color:#666; font-size:15px; }
+  .distbox { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .distbox .m { font-size:90px; font-weight:700; color:var(--gold2); font-family:monospace; }
+  .distbox .cm { font-size:24px; color:#bcd0e4; }
+  .distbox .note { font-size:18px; color:#a9bccf; margin-top:20px; }
+  .hint { position:absolute; bottom:24px; left:0; right:0; text-align:center; color:#8ea6c0; font-size:15px; }
 
   /* ---- HUD do teste ---- */
-  #hud { position:absolute; top:10px; left:10px; background:#101820cc; color:#fff;
-    padding:10px 14px; border-radius:8px; display:none; }
-  #hud .h1 { font-size:16px; font-weight:700; }
+  #hud { position:absolute; top:10px; left:10px; background:#0E2036e6; color:#fff;
+    padding:10px 14px; border-radius:8px; display:none; border:1px solid #C6A24C55; }
+  #hud .h1 { font-size:16px; font-weight:700; color:var(--gold2); }
   #hud .h2 { font-size:14px; color:#9BD0FF; }
   #hud .h3 { font-size:13px; color:#bbb; }
   #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; }
   #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
-    color:#B00020; font-size:15px; display:none; background:#fff; padding:2px 8px; }
+    color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
 </style>
 </head>
 <body>
@@ -70,7 +86,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 1;
+const WEB_VERSION = 2;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -92,16 +108,16 @@ const optotypeHeightPx = (lm, distMm, pxPerMm) => optotypeHeightMm(lm, distMm) *
 // DEFINIÇÕES DE TESTE
 // =====================================================================================
 const TESTS = [
-  { id:'SNELLEN',  title:'Tabela Snellen',        sub:'Letras clássicas. Triagem padrão.',            scale:true },
-  { id:'LOGMAR',   title:'LogMAR / ETDRS',        sub:'Letras Sloan em progressão logarítmica.',      scale:true },
-  { id:'NUMBERS',  title:'Números',               sub:'Optótipos numéricos para quem não lê letras.', scale:true },
-  { id:'E',        title:'E de Snellen (Tumbling E)', sub:'Paciente indica a direção das hastes.',     scale:true, dir:true },
-  { id:'LANDOLT',  title:'Anel de Landolt',       sub:'Paciente indica onde está a abertura.',        scale:true, dir:true },
-  { id:'LEA',      title:'Símbolos LEA (infantil)', sub:'Círculo, quadrado, casa e coração.',         scale:true },
-  { id:'DIAL',     title:'Dial astigmático',      sub:'Relógio radial para triagem de astigmatismo.', scale:false },
-  { id:'DUO',      title:'Teste duocromo (verde/vermelho)', sub:'Equilíbrio de foco (miopia/hiper).', scale:true },
-  { id:'CONTRAST', title:'Sensibilidade ao contraste', sub:'Letra fixa, contraste ajustável.',        scale:false },
-  { id:'ISHIHARA', title:'Visão de cores (triagem)', sub:'Placas pseudoisocromáticas. Só triagem.',   scale:false },
+  { id:'SNELLEN',  title:'Tabela Snellen',        short:'Snellen',      icon:'snellen',  sub:'Letras clássicas. Triagem padrão.',            scale:true },
+  { id:'LOGMAR',   title:'LogMAR / ETDRS',        short:'LogMAR',       icon:'logmar',   sub:'Letras Sloan em progressão logarítmica.',      scale:true },
+  { id:'NUMBERS',  title:'Números',               short:'Números',      icon:'numbers',  sub:'Optótipos numéricos para quem não lê letras.', scale:true },
+  { id:'E',        title:'E de Snellen (Tumbling E)', short:'E direcional', icon:'tumbling', sub:'Paciente indica a direção das hastes.',    scale:true, dir:true },
+  { id:'LANDOLT',  title:'Anel de Landolt',       short:'Landolt',      icon:'landolt',  sub:'Paciente indica onde está a abertura.',        scale:true, dir:true },
+  { id:'LEA',      title:'Símbolos LEA (infantil)', short:'LEA infantil', icon:'lea',    sub:'Círculo, quadrado, casa e coração.',           scale:true },
+  { id:'DIAL',     title:'Dial astigmático',      short:'Astigmatismo', icon:'dial',     sub:'Relógio radial para triagem de astigmatismo.', scale:false },
+  { id:'DUO',      title:'Teste duocromo',        short:'Duocromo',     icon:'duochrome',sub:'Equilíbrio de foco (miopia/hiper).',           scale:true },
+  { id:'CONTRAST', title:'Sensibilidade ao contraste', short:'Contraste', icon:'contrast', sub:'Letra fixa, contraste ajustável.',          scale:false },
+  { id:'ISHIHARA', title:'Visão de cores',        short:'Cores',        icon:'ishihara', sub:'Placas pseudoisocromáticas. Só triagem.',      scale:false },
 ];
 const SLOAN   = ['C','D','H','K','N','O','R','S','V','Z'];
 const SNELLEN = ['C','D','E','F','L','N','O','P','R','T','Z'];
@@ -114,6 +130,32 @@ const REF_OBJECTS = [
   { name:'Régua — marca de 5 cm', mm:50 },
   { name:'Cédula R$ (comprimento 14 cm)', mm:140 },
 ];
+
+// =====================================================================================
+// ÍCONES (SVG inline, coloridos por currentColor)
+// =====================================================================================
+const SVG = (inner, extra='') => `<svg viewBox="0 0 24 24" ${extra}>${inner}</svg>`;
+const STROKE = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const ICONS = {
+  exams: SVG('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', STROKE),
+  settings: SVG('<circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 0 1 0-4h.2A1.7 1.7 0 0 0 4.4 7l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/>', STROKE),
+  snellen: SVG('<text x="12" y="18.5" font-size="20" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">E</text>'),
+  logmar: SVG('<text x="12" y="18.5" font-size="18" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">R</text>'),
+  numbers: SVG('<text x="12" y="17.5" font-size="14" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">573</text>'),
+  tumbling: SVG('<g transform="rotate(90 12 12)"><text x="12" y="18.5" font-size="20" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">E</text></g>'),
+  landolt: SVG('<path d="M20 8.5 A7 7 0 1 0 20 15.5" fill="none" stroke="currentColor" stroke-width="4"/>'),
+  lea: SVG('<path d="M12 21s-7-4.6-7-10a3.8 3.8 0 0 1 7-1.6A3.8 3.8 0 0 1 19 11c0 5.4-7 10-7 10z" fill="currentColor"/>'),
+  dial: SVG('<circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/><line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>', 'fill="none" stroke="currentColor" stroke-width="1.5"'),
+  duochrome: SVG('<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3 a9 9 0 0 1 0 18 z" fill="currentColor"/>'),
+  contrast: SVG('<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3 a9 9 0 0 1 0 18 z" fill="currentColor"/>'),
+  ishihara: SVG('<g fill="currentColor"><circle cx="12" cy="5.5" r="1.5"/><circle cx="7.5" cy="8" r="1.5"/><circle cx="16.5" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="9.5" cy="11.5" r="1.5"/><circle cx="14.5" cy="11.5" r="1.5"/><circle cx="7.5" cy="16" r="1.5"/><circle cx="16.5" cy="16" r="1.5"/><circle cx="12" cy="18.5" r="1.5"/></g>'),
+  autocal: SVG('<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>', STROKE),
+  calib: SVG('<rect x="3" y="7" width="18" height="10" rx="1.5"/><line x1="7" y1="7" x2="7" y2="11"/><line x1="12" y1="7" x2="12" y2="10"/><line x1="17" y1="7" x2="17" y2="11"/>', STROKE),
+  orient: SVG('<rect x="7.5" y="3" width="9" height="18" rx="2"/><path d="M4 8a9 9 0 0 1 2.5-2.7"/><polyline points="3.4 5 4 8.2 7 7.6"/>', STROKE),
+  dist: SVG('<line x1="3" y1="12" x2="21" y2="12"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/>', STROKE),
+  save: SVG('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>', STROKE),
+  update: SVG('<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><polyline points="21 3 21 8 16 8"/>', STROKE),
+};
 
 // =====================================================================================
 // ESTADO
@@ -162,28 +204,33 @@ const S = {
   inches: store.inches,
   orientWork: store.orientation,
   settingsIndex: 0,
+  examsIndex: 0,
   savedFlash: false,
   updateStatus: '',
 };
 
 // Menu = [Calibrar, Distância, ...testes]
-function menuItems(){
+function homeItems(){
   return [
-    { kind:'settings', label:'⚙  Configurações', hint:'Calibração, orientação da tela e distância' },
-    ...TESTS.map(t => ({ kind:'test', test:t, label:t.title, hint:t.sub })),
+    { kind:'exams',    label:'Exames',        icon:'exams' },
+    { kind:'settings', label:'Configurações', icon:'settings' },
   ];
 }
-
+function examItems(){
+  return TESTS.map(t => ({ kind:'test', test:t, label:t.short, icon:t.icon }));
+}
 function settingsItems(){
   return [
-    { kind:'autocal', label:'Calibração automática (polegadas)', hint:'Informe o tamanho da tela; calcula sozinho' },
-    { kind:'calib',   label:'Calibração por objeto', hint:'Método manual: cartão/régua na tela' },
-    { kind:'orient',  label:'Orientação da tela', hint:'Horizontal ou vertical' },
-    { kind:'dist',    label:'Distância do paciente', hint:'Ajuste a distância paciente → tela' },
-    { kind:'save',    label:'💾  Salvar configurações', hint:'Grava tudo; carrega automaticamente ao abrir o app' },
-    { kind:'update',  label:'🔄  Atualização', hint:'Ver a versão atual e buscar nova versão' },
+    { kind:'autocal', label:'Calibração automática', icon:'autocal' },
+    { kind:'calib',   label:'Calibração por objeto', icon:'calib' },
+    { kind:'orient',  label:'Orientação da tela',    icon:'orient' },
+    { kind:'dist',    label:'Distância do paciente', icon:'dist' },
+    { kind:'save',    label:'Salvar configurações',  icon:'save' },
+    { kind:'update',  label:'Atualização',           icon:'update' },
   ];
 }
+// Colunas da grade por tela.
+const GRID_COLS = { HOME:2, EXAMS:5, SETTINGS:3 };
 
 // (Re)grava as configurações atuais no armazenamento local do app.
 function saveAllSettings(){
@@ -447,6 +494,7 @@ function render(){
   hud.style.display = 'none'; warn.style.display='none';
 
   if(S.screen==='HOME') renderHome();
+  else if(S.screen==='EXAMS') renderExams();
   else if(S.screen==='SETTINGS') renderSettings();
   else if(S.screen==='UPDATE') renderUpdate();
   else if(S.screen==='AUTOCAL') renderAutoCal();
@@ -456,46 +504,64 @@ function render(){
   else if(S.screen==='TEST'){ ui.innerHTML=''; drawTest(); renderHud(); }
 }
 
-function renderHome(){
-  const items = menuItems();
-  const calib = store.calibrated
-    ? `Calibrado: ${store.pxPerMm.toFixed(2)} px/mm`
-    : '⚠ Tela ainda não calibrada';
-  const rows = items.map((it,i)=>`
-    <div class="item ${i===S.menuIndex?'sel':''}">
-      <div class="t">${it.label}</div><div class="s">${it.hint}</div>
+// Monta uma grade de ícones (ícone em cima, nome embaixo).
+function tileGrid(items, index, cols, extraClass=''){
+  const tiles = items.map((it,i)=>`
+    <div class="tile ${i===index?'sel':''}">
+      <div class="tile-ic">${ICONS[it.icon]||''}</div>
+      <div class="tile-lb">${it.label}</div>
     </div>`).join('');
-  const orient = store.orientation==='port' ? 'Vertical' : 'Horizontal';
-  ui.innerHTML = `<div class="home">
-    <img class="logo" src="logo.jpg" alt="Clínica da Visão Santa Luzia">
-    <h1>Acuidade Visual — exames de acuidade</h1>
-    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância: ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela: ${orient}</div>
-    ${rows}
-    <div class="foot">▲▼ navegar &nbsp;•&nbsp; Enter selecionar &nbsp;•&nbsp; Esc voltar &nbsp;|&nbsp; teclado = controle remoto</div>
-  </div>`;
-  scrollSelectedIntoView();
+  return `<div class="grid ${extraClass}" style="grid-template-columns:repeat(${cols},1fr)">${tiles}</div>`;
+}
+function scrollSel(){
+  const s = ui.querySelector('.tile.sel');
+  if(s){ try { s.scrollIntoView({block:'nearest', inline:'nearest'}); } catch(e){ try{ s.scrollIntoView(false); }catch(_){} } }
+}
+// Navegação 2D em grade pelo D-pad.
+function gridNav(idx, total, cols, key){
+  const col = idx % cols;
+  if(key==='right' && idx+1<total && col<cols-1) return idx+1;
+  if(key==='left'  && col>0)                      return idx-1;
+  if(key==='down'  && idx+cols<total)             return idx+cols;
+  if(key==='up'    && idx-cols>=0)                return idx-cols;
+  return idx;
+}
+
+function renderHome(){
+  ui.innerHTML = `<div class="screen"><div class="wrap">
+    <img class="logo-badge" src="logo.jpg" alt="Clínica da Visão Santa Luzia">
+    <div class="title">Acuidade Visual</div>
+    <div class="subtitle">CLÍNICA DA VISÃO SANTA LUZIA</div>
+    ${tileGrid(homeItems(), S.menuIndex, GRID_COLS.HOME, 'home2')}
+    <div class="backhint">◀ ▶ navegar &nbsp;•&nbsp; OK selecionar</div>
+  </div></div>`;
+  scrollSel();
+}
+
+function renderExams(){
+  ui.innerHTML = `<div class="screen"><div class="wrap">
+    <div class="title">Exames</div>
+    <div class="subtitle">Selecione o teste de acuidade</div>
+    ${tileGrid(examItems(), S.examsIndex, GRID_COLS.EXAMS)}
+    <div class="backhint">◀ ▶ ▲ ▼ navegar &nbsp;•&nbsp; OK abrir &nbsp;•&nbsp; Voltar retorna</div>
+  </div></div>`;
+  scrollSel();
 }
 
 function renderSettings(){
-  const calib = store.calibrated ? `Calibrado: ${store.pxPerMm.toFixed(2)} px/mm` : '⚠ Tela ainda não calibrada';
+  const calib = store.calibrated ? `Calibrado ${store.pxPerMm.toFixed(2)} px/mm` : '⚠ Tela não calibrada';
   const orient = store.orientation==='port' ? 'Vertical' : 'Horizontal';
-  const inches = store.inches ? ` &nbsp;•&nbsp; Tela ${store.inches.toFixed(1)}"` : '';
-  const items = settingsItems();
-  const rows = items.map((it,i)=>`
-    <div class="item ${i===S.settingsIndex?'sel':''}">
-      <div class="t">${it.label}</div><div class="s">${it.hint}</div>
-    </div>`).join('');
+  const inches = store.inches ? ` &nbsp;•&nbsp; ${store.inches.toFixed(1)}"` : '';
   const flash = S.savedFlash
-    ? `<div class="status ok">✓ Configurações salvas — serão carregadas automaticamente ao abrir o app.</div>` : '';
-  ui.innerHTML = `<div class="home">
-    <img class="logo" src="logo.jpg" alt="Clínica da Visão Santa Luzia">
-    <h1>Configurações</h1>
-    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância: ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela: ${orient}${inches}</div>
+    ? `<div class="status ok">✓ Configurações salvas — carregam automaticamente ao abrir o app.</div>` : '';
+  ui.innerHTML = `<div class="screen"><div class="wrap">
+    <div class="title">Configurações</div>
+    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela ${orient}${inches}</div>
     ${flash}
-    ${rows}
-    <div class="foot">▲▼ navegar &nbsp;•&nbsp; Enter abrir &nbsp;•&nbsp; Esc voltar ao menu</div>
-  </div>`;
-  scrollSelectedIntoView();
+    ${tileGrid(settingsItems(), S.settingsIndex, GRID_COLS.SETTINGS)}
+    <div class="backhint">◀ ▶ ▲ ▼ navegar &nbsp;•&nbsp; OK abrir &nbsp;•&nbsp; Voltar retorna</div>
+  </div></div>`;
+  scrollSel();
 }
 
 function renderUpdate(){
@@ -527,22 +593,6 @@ window.__updateStatus = function(state){
   S.updateStatus = msgs[state] || state;
   if(S.screen==='UPDATE') render();
 };
-
-// Rola o menu para manter o item selecionado sempre visível (navegação só por D-pad).
-function scrollSelectedIntoView(){
-  const home = ui.querySelector('.home');
-  const sel = ui.querySelector('.item.sel');
-  if(!home || !sel) return;
-  const pad = 16;
-  const selTop = sel.offsetTop;
-  const selBot = selTop + sel.offsetHeight;
-  // Se a seleção couber já mostrando o topo (logo/cabeçalho), fica no topo.
-  if(selBot <= home.clientHeight - pad){ home.scrollTop = 0; return; }
-  const viewTop = home.scrollTop;
-  const viewBot = viewTop + home.clientHeight;
-  if(selTop < viewTop + pad) home.scrollTop = Math.max(0, selTop - pad);
-  else if(selBot > viewBot - pad) home.scrollTop = selBot - home.clientHeight + pad;
-}
 
 function renderAutoCal(){
   const r = detectedResolution();
@@ -594,7 +644,7 @@ function renderCalib(){
       <h2>Calibração da tela</h2>
       <p><b>Objeto de referência:</b> ${ref.name}</p>
       <p>Largura real: ${ref.mm} mm</p>
-      <p style="margin-top:12px">Encoste o objeto na tela sobre a barra preta e ajuste até coincidir exatamente.</p>
+      <p style="margin-top:12px">Encoste o objeto na tela sobre a barra clara e ajuste até coincidir exatamente.</p>
       <p class="big" style="margin-top:10px">Resultado: ${pxPerMm.toFixed(2)} pixels/mm</p>
     </div>
     <div class="calibar" style="width:${S.calibLengthPx}px"></div>
@@ -651,23 +701,31 @@ function openTest(t){
   S.screen='TEST';
 }
 function handle(key){
-  const items = menuItems();
   if(S.screen==='HOME'){
-    if(key==='up'){ S.menuIndex=(S.menuIndex-1+items.length)%items.length; render(); }
-    else if(key==='down'){ S.menuIndex=(S.menuIndex+1)%items.length; render(); }
-    else if(key==='ok'){
+    const items = homeItems();
+    const ni = gridNav(S.menuIndex, items.length, GRID_COLS.HOME, key);
+    if(ni!==S.menuIndex){ S.menuIndex=ni; render(); return; }
+    if(key==='ok'){
       const it=items[S.menuIndex];
-      if(it.kind==='settings'){ S.settingsIndex=0; S.savedFlash=false; S.screen='SETTINGS'; }
-      else openTest(it.test);
+      if(it.kind==='exams'){ S.examsIndex=0; S.screen='EXAMS'; }
+      else if(it.kind==='settings'){ S.settingsIndex=0; S.savedFlash=false; S.screen='SETTINGS'; }
       render();
     }
     return;
   }
+  if(S.screen==='EXAMS'){
+    const items = examItems();
+    const ni = gridNav(S.examsIndex, items.length, GRID_COLS.EXAMS, key);
+    if(ni!==S.examsIndex){ S.examsIndex=ni; render(); return; }
+    if(key==='ok'){ openTest(items[S.examsIndex].test); render(); }
+    else if(key==='back'){ S.screen='HOME'; render(); }
+    return;
+  }
   if(S.screen==='SETTINGS'){
     const sitems = settingsItems();
-    if(key==='up'){ S.settingsIndex=(S.settingsIndex-1+sitems.length)%sitems.length; S.savedFlash=false; render(); }
-    else if(key==='down'){ S.settingsIndex=(S.settingsIndex+1)%sitems.length; S.savedFlash=false; render(); }
-    else if(key==='ok'){
+    const ni = gridNav(S.settingsIndex, sitems.length, GRID_COLS.SETTINGS, key);
+    if(ni!==S.settingsIndex){ S.settingsIndex=ni; S.savedFlash=false; render(); return; }
+    if(key==='ok'){
       const it=sitems[S.settingsIndex];
       if(it.kind==='autocal'){ S.inches=store.inches; S.screen='AUTOCAL'; }
       else if(it.kind==='calib'){ S.screen='CALIB'; }
@@ -737,7 +795,7 @@ function handle(key){
     else if(key==='right'){ if(S.test.id==='CONTRAST') S.contrast=Math.min(1.0,S.contrast+0.04); else S.seed++; render(); }
     else if(key==='ok'){ S.single=!S.single; render(); }
     else if(key==='menu'){ S.showHud=!S.showHud; render(); }
-    else if(key==='back'){ S.screen='HOME'; render(); }
+    else if(key==='back'){ S.screen='EXAMS'; render(); }
     return;
   }
 }
