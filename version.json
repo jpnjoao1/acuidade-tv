@@ -1,4 +1,4 @@
 {
-  "version": 4,
-  "notes": "Correção do modo vertical: grade com menos colunas e conteúdo centralizado; todos os itens acessíveis."
+  "version": 5,
+  "notes": "Modo espelho (para salas com espelho) e ponteiro/isolamento de optótipo (fila → único com crowding → ponteiro) nas tabelas de letras."
 }

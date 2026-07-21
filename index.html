@@ -88,7 +88,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 4;
+const WEB_VERSION = 5;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -180,6 +180,7 @@ const ICONS = {
   schober: SVG('<circle cx="12" cy="12" r="8"/><path d="M12 6v12M6 12h12"/>', STROKE),
   maddox: SVG('<circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>', STROKE),
   amsler: SVG('<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>', STROKE),
+  mirror: SVG('<path d="M12 3v18"/><path d="M9 6l-4 3 4 3"/><path d="M15 6l4 3-4 3" opacity="0.5"/><path d="M5 9h14" opacity="0.4"/>', STROKE),
 };
 
 // =====================================================================================
@@ -194,6 +195,8 @@ const store = {
   set orientation(v){ localStorage.setItem('orientation', v); },
   get inches(){ return parseFloat(localStorage.getItem('inches')||'32'); },
   set inches(v){ localStorage.setItem('inches', v); },
+  get mirror(){ return localStorage.getItem('mirror')==='1'; }, // modo espelho
+  set mirror(v){ localStorage.setItem('mirror', v?'1':'0'); },
   get calibrated(){ return this.pxPerMm > 0; },
   get distanceMm(){ return this.distanceCm * 10; },
 };
@@ -233,6 +236,9 @@ const S = {
   savedFlash: false,
   updateStatus: '',
   dialAxis: 90,
+  letterMode: 'row',   // 'row' | 'single' (crowded) | 'pointer'
+  pointerIdx: 0,
+  mirrorWork: false,
 };
 
 // Menu = [Calibrar, Distância, ...testes]
@@ -250,6 +256,7 @@ function settingsItems(){
     { kind:'autocal', label:'Calibração automática', icon:'autocal' },
     { kind:'calib',   label:'Calibração por objeto', icon:'calib' },
     { kind:'orient',  label:'Orientação da tela',    icon:'orient' },
+    { kind:'mirror',  label:'Modo espelho',          icon:'mirror' },
     { kind:'dist',    label:'Distância do paciente', icon:'dist' },
     { kind:'save',    label:'Salvar configurações',  icon:'save' },
     { kind:'update',  label:'Atualização',           icon:'update' },
@@ -270,6 +277,7 @@ function saveAllSettings(){
   store.distanceCm = store.distanceCm;
   store.orientation = store.orientation;
   store.inches = store.inches;
+  store.mirror = store.mirror;
 }
 
 // =====================================================================================
@@ -340,14 +348,35 @@ function drawGlyph(text, cx, cy, heightPx, color='#000'){
   ctx.fillStyle = color; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(text, cx, cy);
 }
-function drawGlyphRow(letters, cy, heightPx, color='#000'){
+function letterRowLayout(count, heightPx){
   setFontForCapHeight(heightPx);
-  const adv = ctx.measureText('E').width;
-  const gap = adv;
-  const total = letters.length*adv + (letters.length-1)*gap;
-  let x = (W-total)/2 + adv/2;
+  const advance = ctx.measureText('E').width, gap = advance;
+  const total = count*advance + (count-1)*gap;
+  const startX = (W-total)/2 + advance/2;
+  return { advance, gap, startX, step: advance+gap };
+}
+function drawGlyphRow(letters, cy, heightPx, color='#000'){
+  const lay = letterRowLayout(letters.length, heightPx);
   ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
-  for(const l of letters){ ctx.fillText(l, x, cy); x += adv+gap; }
+  let x = lay.startX;
+  for(const l of letters){ ctx.fillText(l, x, cy); x += lay.step; }
+}
+// Optótipo único com barras de "crowding" (isolamento para ambliopia).
+function drawCrowded(text, cx, cy, h){
+  drawGlyph(text, cx, cy, h);
+  const t=h/5, gap=h/5, half=h/2;
+  ctx.fillStyle='#000';
+  ctx.fillRect(cx-half, cy-half-gap-t, h, t);   // topo
+  ctx.fillRect(cx-half, cy+half+gap, h, t);     // base
+  ctx.fillRect(cx-half-gap-t, cy-half, t, h);   // esquerda
+  ctx.fillRect(cx+half+gap, cy-half, t, h);     // direita
+}
+// Ponteiro dourado (seta + traço) sob o optótipo apontado.
+function drawPointer(cx, cy, h){
+  const y=cy+h/2+h*0.22, bar=Math.max(3,h*0.09);
+  ctx.fillStyle='#C6A24C';
+  ctx.fillRect(cx-h/2, y, h, bar);
+  ctx.beginPath(); ctx.moveTo(cx, y-h*0.14); ctx.lineTo(cx-h*0.15, y); ctx.lineTo(cx+h*0.15, y); ctx.closePath(); ctx.fill();
 }
 function drawGlyphRowInBox(letters, left, width, cy, heightPx){
   setFontForCapHeight(heightPx);
@@ -611,11 +640,22 @@ function drawTest(){
   if(store.calibrated) heightPx = optotypeHeightPx(lm, store.distanceMm, store.pxPerMm);
   else heightPx = H*0.5*Math.pow(10, lm-1.0); // fallback aproximado
 
+  ctx.save();
+  if(store.mirror){ ctx.translate(W,0); ctx.scale(-1,1); } // modo espelho: inverte horizontalmente
+
   switch(t.id){
     case 'SNELLEN': case 'LOGMAR': case 'NUMBERS': case 'HOTV': case 'LEANUM': {
-      const letters = pickLetters(t.id, S.seed, S.acuityIndex, S.single?1:5);
-      if(S.single) drawGlyph(letters[0], cx, cy, heightPx);
-      else drawGlyphRow(letters, cy, heightPx);
+      if(S.letterMode==='single'){
+        drawCrowded(pickLetters(t.id, S.seed, S.acuityIndex, 1)[0], cx, cy, heightPx);
+      } else {
+        const letters = pickLetters(t.id, S.seed, S.acuityIndex, 5);
+        drawGlyphRow(letters, cy, heightPx);
+        if(S.letterMode==='pointer'){
+          const lay = letterRowLayout(5, heightPx);
+          const idx = ((S.pointerIdx%5)+5)%5;
+          drawPointer(lay.startX + idx*lay.step, cy, heightPx);
+        }
+      }
       break;
     }
     case 'E':
@@ -645,6 +685,7 @@ function drawTest(){
     case 'AMSLER': drawAmsler(); break;
     case 'ISHIHARA': drawIshihara(1+(Math.abs(S.seed)%9), S.seed, S.single); break;
   }
+  ctx.restore();
 }
 
 // =====================================================================================
@@ -669,6 +710,7 @@ function render(){
   else if(S.screen==='AUTOCAL') renderAutoCal();
   else if(S.screen==='CALIB') renderCalib();
   else if(S.screen==='ORIENT') renderOrient();
+  else if(S.screen==='MIRROR') renderMirror();
   else if(S.screen==='DIST') renderDist();
   else if(S.screen==='TEST'){ ui.innerHTML=''; drawTest(); renderHud(); }
 }
@@ -721,16 +763,36 @@ function renderSettings(){
   const calib = store.calibrated ? `Calibrado ${store.pxPerMm.toFixed(2)} px/mm` : '⚠ Tela não calibrada';
   const orient = store.orientation==='port' ? 'Vertical' : 'Horizontal';
   const inches = store.inches ? ` &nbsp;•&nbsp; ${store.inches.toFixed(1)}"` : '';
+  const mirror = store.mirror ? ' &nbsp;•&nbsp; 🪞 espelho' : '';
   const flash = S.savedFlash
     ? `<div class="status ok">✓ Configurações salvas — carregam automaticamente ao abrir o app.</div>` : '';
   ui.innerHTML = `<div class="screen"><div class="wrap">
     <div class="title">Configurações</div>
-    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela ${orient}${inches}</div>
+    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela ${orient}${inches}${mirror}</div>
     ${flash}
     ${tileGrid(settingsItems(), S.settingsIndex, gridCols('SETTINGS'))}
     <div class="backhint">◀ ▶ ▲ ▼ navegar &nbsp;•&nbsp; OK abrir &nbsp;•&nbsp; Voltar retorna</div>
   </div></div>`;
   scrollSel();
+}
+
+function renderMirror(){
+  const on = S.mirrorWork;
+  ui.innerHTML = `<div class="sheet">
+    <img class="logo-sm" src="logo.jpg" alt="">
+    <div class="distbox">
+      <div style="font-size:26px;font-weight:700">Modo espelho</div>
+      <div class="m" style="font-size:56px">${on?'LIGADO':'DESLIGADO'}</div>
+      <div class="note" style="max-width:74vw;text-align:center">
+        Para salas com espelho: os optótipos são invertidos horizontalmente para o paciente
+        enxergar corretamente pelo reflexo. O painel do examinador continua normal.
+      </div>
+      <div class="note" style="max-width:74vw;text-align:center;color:#E3C77E">
+        Ajuste a <b>Distância</b> para o caminho óptico total (paciente → espelho → tela).
+      </div>
+    </div>
+    <div class="hint">◀ ▶ ligar/desligar &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
+  </div>`;
 }
 
 function renderUpdate(){
@@ -847,14 +909,22 @@ function renderHud(){
   const contrast = t.id==='CONTRAST' ? `<div class="h2">Contraste: ${Math.round(S.contrast*100)}%</div>` : '';
   const dial = t.id==='DIAL' ? `<div class="h2">Eixo: ${S.dialAxis}°</div>` : '';
   const glasses = t.glasses ? `<div class="h2" style="color:#E3C77E">${t.glasses}</div>` : '';
-  hud.innerHTML = `<div class="h1">${t.title}</div>${acuity}${contrast}${dial}${glasses}
-    <div class="h3">Distância ${Math.round(store.distanceCm)} cm</div>
+  const modeName = {row:'Fila', single:'Único (crowding)', pointer:'Ponteiro'};
+  const mode = LETTER_CHARTS.includes(t.id) ? `<div class="h2">Modo: ${modeName[S.letterMode]}</div>` : '';
+  const mirror = store.mirror ? ' • 🪞 espelho' : '';
+  hud.innerHTML = `<div class="h1">${t.title}</div>${acuity}${contrast}${dial}${mode}${glasses}
+    <div class="h3">Distância ${Math.round(store.distanceCm)} cm${mirror}</div>
     <div class="h4">${hintFor()}</div>
     <div class="h4" style="color:#ffffff66">M: ocultar/mostrar este painel</div>`;
   hud.style.display='block';
 }
 function hintFor(){
-  switch(S.test.id){
+  const id=S.test.id;
+  if(LETTER_CHARTS.includes(id)){
+    if(S.letterMode==='pointer') return '▲▼ tamanho • ◀▶ mover ponteiro • OK muda modo';
+    return '▲▼ tamanho • ◀▶ embaralhar • OK: fila → único → ponteiro';
+  }
+  switch(id){
     case 'CONTRAST': return '▲▼ tamanho • ◀▶ ajustar contraste';
     case 'DIAL': return '◀▶ girar o eixo (dourado) até a linha mais nítida e ler o grau';
     case 'ISHIHARA': return '◀▶ trocar número • Enter revelar/ocultar';
@@ -871,8 +941,10 @@ function hintFor(){
 function openTest(t){
   S.test=t; S.acuityIndex=DEFAULT_ACUITY_INDEX;
   S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
+  S.letterMode='row'; S.pointerIdx=0;
   S.screen='TEST';
 }
+const LETTER_CHARTS = ['SNELLEN','LOGMAR','NUMBERS','HOTV','LEANUM'];
 function handle(key){
   if(S.screen==='HOME'){
     const items = homeItems();
@@ -903,6 +975,7 @@ function handle(key){
       if(it.kind==='autocal'){ S.inches=store.inches; S.screen='AUTOCAL'; }
       else if(it.kind==='calib'){ S.screen='CALIB'; }
       else if(it.kind==='orient'){ S.orientWork=store.orientation; S.screen='ORIENT'; }
+      else if(it.kind==='mirror'){ S.mirrorWork=store.mirror; S.screen='MIRROR'; }
       else if(it.kind==='dist'){ S.distanceCm=store.distanceCm; S.screen='DIST'; }
       else if(it.kind==='save'){ saveAllSettings(); S.savedFlash=true; }
       else if(it.kind==='update'){ S.updateStatus=''; S.screen='UPDATE'; }
@@ -943,6 +1016,12 @@ function handle(key){
     else if(key==='back'){ S.screen='SETTINGS'; render(); }
     return;
   }
+  if(S.screen==='MIRROR'){
+    if(key==='left'||key==='right'||key==='up'||key==='down'){ S.mirrorWork=!S.mirrorWork; render(); }
+    else if(key==='ok'){ store.mirror=S.mirrorWork; S.screen='SETTINGS'; render(); }
+    else if(key==='back'){ S.screen='SETTINGS'; render(); }
+    return;
+  }
   if(S.screen==='CALIB'){
     if(key==='left'){ S.calibLengthPx=Math.max(20,S.calibLengthPx-2); render(); }
     else if(key==='right'){ S.calibLengthPx+=2; render(); }
@@ -962,22 +1041,30 @@ function handle(key){
     return;
   }
   if(S.screen==='TEST'){
-    const id=S.test.id;
+    const id=S.test.id, isLetter=LETTER_CHARTS.includes(id);
     if(key==='up'){ if(S.test.scale) S.acuityIndex=Math.max(0,S.acuityIndex-1); render(); }
     else if(key==='down'){ if(S.test.scale) S.acuityIndex=Math.min(AcuityLogMar.length-1,S.acuityIndex+1); render(); }
     else if(key==='left'){
       if(id==='CONTRAST') S.contrast=Math.max(0.02,S.contrast-0.04);
       else if(id==='DIAL') S.dialAxis=(S.dialAxis+175)%180;   // -5°
+      else if(isLetter && S.letterMode==='pointer') S.pointerIdx=(S.pointerIdx+4)%5; // move -1
       else S.seed--;
       render();
     }
     else if(key==='right'){
       if(id==='CONTRAST') S.contrast=Math.min(1.0,S.contrast+0.04);
       else if(id==='DIAL') S.dialAxis=(S.dialAxis+5)%180;     // +5°
+      else if(isLetter && S.letterMode==='pointer') S.pointerIdx=(S.pointerIdx+1)%5; // move +1
       else S.seed++;
       render();
     }
-    else if(key==='ok'){ S.single=!S.single; render(); }
+    else if(key==='ok'){
+      if(isLetter){ // cicla: fila -> único (crowding) -> ponteiro -> fila
+        S.letterMode = S.letterMode==='row'?'single':S.letterMode==='single'?'pointer':'row';
+        S.pointerIdx=0;
+      } else S.single=!S.single;
+      render();
+    }
     else if(key==='menu'){ S.showHud=!S.showHud; render(); }
     else if(key==='back'){ S.screen='EXAMS'; render(); }
     return;
