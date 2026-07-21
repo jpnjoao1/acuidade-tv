@@ -86,7 +86,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 2;
+const WEB_VERSION = 3;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -110,19 +110,33 @@ const optotypeHeightPx = (lm, distMm, pxPerMm) => optotypeHeightMm(lm, distMm) *
 const TESTS = [
   { id:'SNELLEN',  title:'Tabela Snellen',        short:'Snellen',      icon:'snellen',  sub:'Letras clássicas. Triagem padrão.',            scale:true },
   { id:'LOGMAR',   title:'LogMAR / ETDRS',        short:'LogMAR',       icon:'logmar',   sub:'Letras Sloan em progressão logarítmica.',      scale:true },
-  { id:'NUMBERS',  title:'Números',               short:'Números',      icon:'numbers',  sub:'Optótipos numéricos para quem não lê letras.', scale:true },
+  { id:'NUMBERS',  title:'Números',               short:'Números',      icon:'numbers',  sub:'Optótipos numéricos.',                          scale:true },
+  { id:'HOTV',     title:'HOTV (infantil)',       short:'HOTV',         icon:'hotv',     sub:'Letras H O T V para crianças (combinar).',      scale:true },
+  { id:'LEANUM',   title:'Números LEA',           short:'Números LEA',  icon:'leanum',   sub:'Números 5 6 8 9 (infantil).',                   scale:true },
   { id:'E',        title:'E de Snellen (Tumbling E)', short:'E direcional', icon:'tumbling', sub:'Paciente indica a direção das hastes.',    scale:true, dir:true },
   { id:'LANDOLT',  title:'Anel de Landolt',       short:'Landolt',      icon:'landolt',  sub:'Paciente indica onde está a abertura.',        scale:true, dir:true },
-  { id:'LEA',      title:'Símbolos LEA (infantil)', short:'LEA infantil', icon:'lea',    sub:'Círculo, quadrado, casa e coração.',           scale:true },
-  { id:'DIAL',     title:'Dial astigmático',      short:'Astigmatismo', icon:'dial',     sub:'Relógio radial para triagem de astigmatismo.', scale:false },
+  { id:'LEA',      title:'Símbolos LEA',          short:'Símbolos LEA', icon:'lea',      sub:'Círculo, quadrado, casa e coração.',           scale:true },
+  { id:'FIGURES',  title:'Figuras (infantil)',    short:'Figuras',      icon:'figures',  sub:'Casa, carro, estrela… para crianças pequenas.', scale:true },
+  { id:'CONTRAST', title:'Sensibilidade ao contraste', short:'Contraste', icon:'contrast', sub:'Acuidade + contraste ajustável.',            scale:true },
+  { id:'PELLI',    title:'Pelli-Robson',          short:'Pelli-Robson', icon:'pelli',    sub:'Carta padrão de sensibilidade ao contraste.',  scale:false },
+  { id:'DIAL',     title:'Dial astigmático',      short:'Astigmatismo', icon:'dial',     sub:'Leque radial com escala em graus.',            scale:false },
   { id:'DUO',      title:'Teste duocromo',        short:'Duocromo',     icon:'duochrome',sub:'Equilíbrio de foco (miopia/hiper).',           scale:true },
-  { id:'CONTRAST', title:'Sensibilidade ao contraste', short:'Contraste', icon:'contrast', sub:'Letra fixa, contraste ajustável.',          scale:false },
+  { id:'WORTH',    title:'Worth 4 pontos',        short:'Worth 4 pts',  icon:'worth',    sub:'Fusão/supressão.',  scale:false, dark:true, glasses:'Óculos vermelho-verde (vermelho no OD).' },
+  { id:'STEREO',   title:'Estereopsia (random-dot)', short:'Estereopsia', icon:'stereo', sub:'Triagem de estereopsia.', scale:false, dark:true, glasses:'Óculos vermelho-verde.' },
+  { id:'SCHOBER',  title:'Teste de Schober',      short:'Schober',      icon:'schober',  sub:'Foria horizontal/vertical.', scale:false, dark:true, glasses:'Óculos vermelho-verde.' },
+  { id:'MADDOX',   title:'Maddox',                short:'Maddox',       icon:'maddox',   sub:'Foria com vareta de Maddox.', scale:false, dark:true, glasses:'Vareta de Maddox sobre um olho.' },
+  { id:'AMSLER',   title:'Grade de Amsler',       short:'Amsler',       icon:'amsler',   sub:'Triagem macular (distorções/escotoma).',       scale:false },
   { id:'ISHIHARA', title:'Visão de cores',        short:'Cores',        icon:'ishihara', sub:'Placas pseudoisocromáticas. Só triagem.',      scale:false },
 ];
 const SLOAN   = ['C','D','H','K','N','O','R','S','V','Z'];
 const SNELLEN = ['C','D','E','F','L','N','O','P','R','T','Z'];
 const DIGITS  = ['2','3','4','5','6','7','8','9'];
-function pool(id){ return id==='SNELLEN'?SNELLEN : id==='NUMBERS'?DIGITS : SLOAN; }
+const HOTV    = ['H','O','T','V'];
+const LEANUM  = ['5','6','8','9'];
+function pool(id){
+  return id==='SNELLEN'?SNELLEN : id==='NUMBERS'?DIGITS
+       : id==='HOTV'?HOTV : id==='LEANUM'?LEANUM : SLOAN;
+}
 
 const REF_OBJECTS = [
   { name:'Cartão (crédito / RG)', mm:85.6 },
@@ -155,6 +169,15 @@ const ICONS = {
   dist: SVG('<line x1="3" y1="12" x2="21" y2="12"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/>', STROKE),
   save: SVG('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>', STROKE),
   update: SVG('<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><polyline points="21 3 21 8 16 8"/>', STROKE),
+  hotv: SVG('<text x="12" y="16" font-size="9" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">HOTV</text>'),
+  leanum: SVG('<text x="12" y="17" font-size="13" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">689</text>'),
+  figures: SVG('<path d="M12 3l2.5 5.5 6 .6-4.5 4 1.3 5.9L12 21l-5.3 3 1.3-5.9-4.5-4 6-.6z" fill="currentColor"/>'),
+  pelli: SVG('<g fill="currentColor"><rect x="4" y="8" width="4" height="9"/><rect x="10" y="10" width="4" height="7"/><rect x="16" y="12" width="4" height="5"/></g>'),
+  worth: SVG('<g fill="currentColor"><circle cx="12" cy="4.5" r="2.4"/><circle cx="4.5" cy="12" r="2.4"/><circle cx="19.5" cy="12" r="2.4"/><circle cx="12" cy="19.5" r="2.4"/></g>'),
+  stereo: SVG('<rect x="4" y="7" width="12" height="12" rx="1.5"/><rect x="9" y="4.5" width="12" height="12" rx="1.5"/>', STROKE),
+  schober: SVG('<circle cx="12" cy="12" r="8"/><path d="M12 6v12M6 12h12"/>', STROKE),
+  maddox: SVG('<circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>', STROKE),
+  amsler: SVG('<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>', STROKE),
 };
 
 // =====================================================================================
@@ -207,6 +230,7 @@ const S = {
   examsIndex: 0,
   savedFlash: false,
   updateStatus: '',
+  dialAxis: 90,
 };
 
 // Menu = [Calibrar, Distância, ...testes]
@@ -375,18 +399,31 @@ function drawLeaRow(syms, cy, size){
   for(const s of syms){ drawLea(s,x,cy,size); x+=size+gap; }
 }
 
-function drawDial(){
-  const cx=W/2, cy=H/2, r=Math.min(W,H)*0.42, st=r*0.02;
+function drawDial(axisDeg){
+  const cx=W/2, cy=H/2, r=Math.min(W,H)*0.40, st=Math.max(2, r*0.014);
+  // círculo externo
   ctx.strokeStyle='#000'; ctx.lineWidth=st;
   ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI); ctx.stroke();
-  ctx.lineWidth=st*1.4;
-  for(let deg=0; deg<360; deg+=30){
-    const a=deg*Math.PI/180, dx=Math.cos(a), dy=Math.sin(a), inner=r*0.12;
-    ctx.beginPath();
-    ctx.moveTo(cx+dx*inner, cy+dy*inner);
-    ctx.lineTo(cx+dx*r, cy+dy*r);
-    ctx.stroke();
+  // linhas de eixo (diâmetros) a cada 10°
+  ctx.lineWidth=st;
+  for(let deg=0; deg<180; deg+=10){
+    const a=deg*Math.PI/180, dx=Math.cos(a), dy=-Math.sin(a);
+    ctx.beginPath(); ctx.moveTo(cx-dx*r, cy-dy*r); ctx.lineTo(cx+dx*r, cy+dy*r); ctx.stroke();
   }
+  // marcador de eixo (dourado) que o examinador gira para ler o grau
+  if(axisDeg!=null){
+    const a=axisDeg*Math.PI/180, dx=Math.cos(a), dy=-Math.sin(a);
+    ctx.strokeStyle='#C6A24C'; ctx.lineWidth=st*2.4;
+    ctx.beginPath(); ctx.moveTo(cx-dx*r, cy-dy*r); ctx.lineTo(cx+dx*r, cy+dy*r); ctx.stroke();
+  }
+  // rótulos em graus (convenção TABO: 0° à direita, 90° em cima, 180° à esquerda)
+  ctx.fillStyle='#000'; ctx.font=`bold ${Math.max(13, r*0.07)}px Arial`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const ro=r+Math.max(16, r*0.10);
+  [0,30,60,90,120,150,180].forEach(d=>{
+    const a=d*Math.PI/180;
+    ctx.fillText(d+'°', cx+Math.cos(a)*ro, cy-Math.sin(a)*ro);
+  });
 }
 function drawDuochrome(letters, heightPx){
   const half=W/2;
@@ -435,21 +472,138 @@ function drawDirectionalRow(seed, heightPx, drawFn){
   for(let i=0;i<count;i++){ drawFn(x, heightPx, Math.abs(seed+i*13)%4); x+=heightPx+gap; }
 }
 
+// ---- VISÃO BINOCULAR (fundo preto; usar óculos vermelho-verde) ----
+function drawWorth(){
+  const cx=W/2, cy=H/2, R=Math.min(W,H)*0.24, r=R*0.32;
+  const dot=(x,y,c)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); ctx.fill(); };
+  dot(cx, cy-R, '#E11414');   // vermelho (topo)
+  dot(cx-R, cy, '#12C012');   // verde (esquerda)
+  dot(cx+R, cy, '#12C012');   // verde (direita)
+  dot(cx, cy+R, '#FFFFFF');   // branco (base)
+}
+function drawSchober(){
+  const cx=W/2, cy=H/2, R=Math.min(W,H)*0.30, lw=Math.max(3, R*0.02);
+  ctx.strokeStyle='#12D012'; ctx.lineWidth=lw;
+  for(let k=1;k<=3;k++){ ctx.beginPath(); ctx.arc(cx,cy,R*k/3,0,2*Math.PI); ctx.stroke(); }
+  ctx.strokeStyle='#E11414'; ctx.lineWidth=lw;
+  ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy); ctx.moveTo(cx,cy-R); ctx.lineTo(cx,cy+R); ctx.stroke();
+}
+function drawMaddox(){
+  const cx=W/2, cy=H/2;
+  // escala de referência fraca (tangente)
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(W,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,H); ctx.stroke();
+  // ponto luminoso central
+  ctx.fillStyle='#FFFFFF'; ctx.beginPath(); ctx.arc(cx,cy,Math.max(4,Math.min(W,H)*0.011),0,2*Math.PI); ctx.fill();
+}
+// ---- ESTEREOPSIA (random-dot anaglifo; fundo preto; óculos vermelho-verde) ----
+const STEREO_SHAPES=['CÍRCULO','QUADRADO','TRIÂNGULO','CRUZ'];
+function stereoInShape(shape, nx, ny){ // nx,ny em -1..1 relativos ao alvo central
+  if(shape==='CÍRCULO')   return nx*nx+ny*ny <= 1;
+  if(shape==='QUADRADO')  return Math.abs(nx)<=0.85 && Math.abs(ny)<=0.85;
+  if(shape==='TRIÂNGULO') return ny<=0.8 && ny>=-0.8 && Math.abs(nx) <= (0.8-ny)/1.6;
+  if(shape==='CRUZ')      return Math.abs(nx)<=0.35 || Math.abs(ny)<=0.35;
+  return false;
+}
+function drawStereo(seed, reveal){
+  const shape=STEREO_SHAPES[Math.abs(seed)%STEREO_SHAPES.length];
+  const cx=W/2, cy=H/2, field=Math.min(W,H)*0.66, tR=field*0.34, disp=Math.max(4, field*0.018);
+  const rnd=mulberry32(seed*7+13); const step=Math.max(6, field/60);
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for(let y=cy-field/2; y<cy+field/2; y+=step){
+    for(let x=cx-field/2; x<cx+field/2; x+=step){
+      const jx=x+(rnd()-0.5)*step, jy=y+(rnd()-0.5)*step;
+      const nx=(jx-cx)/tR, ny=(jy-cy)/tR;
+      const inTarget=stereoInShape(shape, nx, ny);
+      const d=inTarget?disp:0, r=step*0.34;
+      ctx.fillStyle='#FF1111'; ctx.beginPath(); ctx.arc(jx-d, jy, r, 0, 2*Math.PI); ctx.fill();
+      ctx.fillStyle='#11FF11'; ctx.beginPath(); ctx.arc(jx+d, jy, r, 0, 2*Math.PI); ctx.fill();
+    }
+  }
+  ctx.restore();
+  if(reveal){ ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=3; ctx.strokeRect(cx-tR,cy-tR,tR*2,tR*2);
+    ctx.fillStyle='#fff'; ctx.font='bold 22px Arial'; ctx.textAlign='center'; ctx.fillText(shape, cx, cy-tR-16); }
+}
+// ---- PELLI-ROBSON (sensibilidade ao contraste; fundo branco) ----
+function drawPelli(seed){
+  const cols=3, rows=4, mL=W*0.10, mT=H*0.14, gw=(W-2*mL), gh=(H-2*mT-40);
+  const cw=gw/cols, ch=gh/rows, letterH=Math.min(cw,ch)*0.42;
+  const rnd=mulberry32(seed*17+3);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  let tri=0;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const contrast=Math.max(0.008, Math.pow(10, -0.18*tri)); // passos de 0,18 log
+    const g=Math.round(255*(1-contrast));
+    const cxT=mL+c*cw+cw/2, cyT=mT+r*ch+ch/2;
+    setFontForCapHeight(letterH); ctx.fillStyle=`rgb(${g},${g},${g})`;
+    const adv=ctx.measureText('E').width, gap=adv*0.35;
+    const start=cxT-(adv+gap);
+    for(let k=0;k<3;k++){ ctx.fillText(SLOAN[(rnd()*SLOAN.length)|0], start+k*(adv+gap), cyT); }
+    tri++;
+  }
+  ctx.fillStyle='#0E2036'; ctx.font='14px Arial';
+  ctx.fillText('Contraste diminui da esquerda p/ direita e de cima p/ baixo', W/2, H-22);
+}
+// ---- GRADE DE AMSLER (triagem macular; fundo branco) ----
+function drawAmsler(){
+  const side=Math.min(W,H)*0.82, n=20, cell=side/n, left=(W-side)/2, top=(H-side)/2;
+  ctx.strokeStyle='#000'; ctx.lineWidth=Math.max(1, cell*0.06);
+  ctx.beginPath();
+  for(let i=0;i<=n;i++){ ctx.moveTo(left+i*cell,top); ctx.lineTo(left+i*cell,top+side);
+    ctx.moveTo(left,top+i*cell); ctx.lineTo(left+side,top+i*cell); }
+  ctx.stroke();
+  ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(W/2,H/2,Math.max(4,cell*0.28),0,2*Math.PI); ctx.fill();
+}
+// ---- FIGURAS PEDIÁTRICAS (fundo branco) ----
+const FIGS=['HOUSE','CIRCLE','SQUARE','HEART','STAR','APPLE','CAR','UMBRELLA'];
+function drawFigure(sym, cx, cy, size){
+  const s=size, l=cx-s/2, t=cy-s/2; ctx.fillStyle='#000';
+  if(sym==='HOUSE'||sym==='HEART'||sym==='CIRCLE'||sym==='SQUARE'){ drawLea(sym, cx, cy, size); return; }
+  if(sym==='STAR'){
+    ctx.beginPath();
+    for(let i=0;i<10;i++){ const rr=(i%2?s*0.2:s*0.5), a=-Math.PI/2+i*Math.PI/5;
+      const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.closePath(); ctx.fill(); return;
+  }
+  if(sym==='APPLE'){
+    ctx.beginPath(); ctx.arc(cx-s*0.16, cy+s*0.05, s*0.32, 0, 2*Math.PI);
+    ctx.arc(cx+s*0.16, cy+s*0.05, s*0.32, 0, 2*Math.PI); ctx.fill();
+    ctx.fillRect(cx-s*0.03, t+s*0.02, s*0.06, s*0.22); return; // cabinho
+  }
+  if(sym==='CAR'){
+    ctx.fillRect(l+s*0.05, cy-s*0.05, s*0.9, s*0.28);
+    ctx.beginPath(); ctx.moveTo(l+s*0.25, cy-s*0.05); ctx.lineTo(l+s*0.38, cy-s*0.3);
+    ctx.lineTo(l+s*0.68, cy-s*0.3); ctx.lineTo(l+s*0.78, cy-s*0.05); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(l+s*0.3, cy+s*0.24, s*0.1, 0, 2*Math.PI); ctx.arc(l+s*0.7, cy+s*0.24, s*0.1, 0, 2*Math.PI); ctx.fill(); return;
+  }
+  if(sym==='UMBRELLA'){
+    ctx.beginPath(); ctx.arc(cx, cy, s*0.42, Math.PI, 2*Math.PI); ctx.fill();
+    ctx.fillRect(cx-s*0.03, cy, s*0.06, s*0.42);
+    ctx.beginPath(); ctx.arc(cx+s*0.12, cy+s*0.42, s*0.12, 0, Math.PI); ctx.fill(); return;
+  }
+}
+function drawFigureRow(syms, cy, size){
+  const gap=size, total=syms.length*size+(syms.length-1)*gap;
+  let x=(W-total)/2 + size/2;
+  for(const s of syms){ drawFigure(s, x, cy, size); x+=size+gap; }
+}
+
 // =====================================================================================
 // RENDER DO TESTE (canvas)
 // =====================================================================================
 function drawTest(){
   resizeCanvas(); // garante W/H atuais (evita canvas 1px se o layout ainda não estava pronto)
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const t=S.test;
+  ctx.fillStyle = t.dark ? '#000' : '#fff'; ctx.fillRect(0,0,W,H);
   const lm = AcuityLogMar[S.acuityIndex];
   const cx=W/2, cy=H/2;
   let heightPx;
   if(store.calibrated) heightPx = optotypeHeightPx(lm, store.distanceMm, store.pxPerMm);
   else heightPx = H*0.5*Math.pow(10, lm-1.0); // fallback aproximado
 
-  switch(S.test.id){
-    case 'SNELLEN': case 'LOGMAR': case 'NUMBERS': {
-      const letters = pickLetters(S.test.id, S.seed, S.acuityIndex, S.single?1:5);
+  switch(t.id){
+    case 'SNELLEN': case 'LOGMAR': case 'NUMBERS': case 'HOTV': case 'LEANUM': {
+      const letters = pickLetters(t.id, S.seed, S.acuityIndex, S.single?1:5);
       if(S.single) drawGlyph(letters[0], cx, cy, heightPx);
       else drawGlyphRow(letters, cy, heightPx);
       break;
@@ -466,14 +620,19 @@ function drawTest(){
       if(S.single) drawLea(LEA[Math.abs(S.seed)%LEA.length], cx, cy, heightPx);
       else drawLeaRow([0,1,2,3].map(i=>LEA[Math.abs(S.seed+i*7)%LEA.length]), cy, heightPx);
       break;
-    case 'DIAL': drawDial(); break;
-    case 'DUO': drawDuochrome(pickLetters('LOGMAR', S.seed, S.acuityIndex, 3), heightPx); break;
-    case 'CONTRAST': {
-      const letter = pickLetters('LOGMAR', S.seed, S.acuityIndex, 1)[0];
-      const h = store.calibrated ? heightPx : H*0.12;
-      drawContrastLetter(letter, h, S.contrast);
+    case 'FIGURES':
+      if(S.single) drawFigure(FIGS[Math.abs(S.seed)%FIGS.length], cx, cy, heightPx);
+      else drawFigureRow([0,1,2,3].map(i=>FIGS[Math.abs(S.seed+i*5)%FIGS.length]), cy, heightPx);
       break;
-    }
+    case 'DIAL': drawDial(S.dialAxis); break;
+    case 'DUO': drawDuochrome(pickLetters('LOGMAR', S.seed, S.acuityIndex, 3), heightPx); break;
+    case 'CONTRAST': drawContrastLetter(pickLetters('LOGMAR', S.seed, S.acuityIndex, 1)[0], heightPx, S.contrast); break;
+    case 'PELLI': drawPelli(S.seed); break;
+    case 'WORTH': drawWorth(); break;
+    case 'STEREO': drawStereo(S.seed, S.single); break;
+    case 'SCHOBER': drawSchober(); break;
+    case 'MADDOX': drawMaddox(); break;
+    case 'AMSLER': drawAmsler(); break;
     case 'ISHIHARA': drawIshihara(1+(Math.abs(S.seed)%9), S.seed, S.single); break;
   }
 }
@@ -672,11 +831,13 @@ function renderHud(){
     warn.style.display='block';
   }
   if(!S.showHud) return;
-  const lm = AcuityLogMar[S.acuityIndex];
-  const acuity = S.test.scale
+  const t=S.test, lm = AcuityLogMar[S.acuityIndex];
+  const acuity = t.scale
     ? `<div class="h2">20/${snellenFeet(lm)} • 6/${snellenMeters(lm)} • dec ${decimalAc(lm).toFixed(2)} • logMAR ${lm>=0?'+':''}${lm.toFixed(1)}</div>` : '';
-  const contrast = S.test.id==='CONTRAST' ? `<div class="h2">Contraste: ${Math.round(S.contrast*100)}%</div>` : '';
-  hud.innerHTML = `<div class="h1">${S.test.title}</div>${acuity}${contrast}
+  const contrast = t.id==='CONTRAST' ? `<div class="h2">Contraste: ${Math.round(S.contrast*100)}%</div>` : '';
+  const dial = t.id==='DIAL' ? `<div class="h2">Eixo: ${S.dialAxis}°</div>` : '';
+  const glasses = t.glasses ? `<div class="h2" style="color:#E3C77E">${t.glasses}</div>` : '';
+  hud.innerHTML = `<div class="h1">${t.title}</div>${acuity}${contrast}${dial}${glasses}
     <div class="h3">Distância ${Math.round(store.distanceCm)} cm</div>
     <div class="h4">${hintFor()}</div>
     <div class="h4" style="color:#ffffff66">M: ocultar/mostrar este painel</div>`;
@@ -684,10 +845,12 @@ function renderHud(){
 }
 function hintFor(){
   switch(S.test.id){
-    case 'CONTRAST': return '◀▶ ajustar contraste • tamanho fixo';
-    case 'DIAL': return 'Padrão fixo — peça a linha mais nítida.';
+    case 'CONTRAST': return '▲▼ tamanho • ◀▶ ajustar contraste';
+    case 'DIAL': return '◀▶ girar o eixo (dourado) até a linha mais nítida e ler o grau';
     case 'ISHIHARA': return '◀▶ trocar número • Enter revelar/ocultar';
+    case 'STEREO': return '◀▶ trocar figura • Enter revelar/ocultar (para o examinador)';
     case 'E': case 'LANDOLT': return '▲▼ tamanho • ◀▶ nova orientação • Enter 1 optótipo/fila';
+    case 'PELLI': case 'AMSLER': case 'WORTH': case 'SCHOBER': case 'MADDOX': return 'Padrão fixo — conduza a leitura com o paciente.';
     default: return '▲▼ tamanho • ◀▶ embaralhar • Enter 1 optótipo/fila';
   }
 }
@@ -789,10 +952,21 @@ function handle(key){
     return;
   }
   if(S.screen==='TEST'){
+    const id=S.test.id;
     if(key==='up'){ if(S.test.scale) S.acuityIndex=Math.max(0,S.acuityIndex-1); render(); }
     else if(key==='down'){ if(S.test.scale) S.acuityIndex=Math.min(AcuityLogMar.length-1,S.acuityIndex+1); render(); }
-    else if(key==='left'){ if(S.test.id==='CONTRAST') S.contrast=Math.max(0.02,S.contrast-0.04); else S.seed--; render(); }
-    else if(key==='right'){ if(S.test.id==='CONTRAST') S.contrast=Math.min(1.0,S.contrast+0.04); else S.seed++; render(); }
+    else if(key==='left'){
+      if(id==='CONTRAST') S.contrast=Math.max(0.02,S.contrast-0.04);
+      else if(id==='DIAL') S.dialAxis=(S.dialAxis+175)%180;   // -5°
+      else S.seed--;
+      render();
+    }
+    else if(key==='right'){
+      if(id==='CONTRAST') S.contrast=Math.min(1.0,S.contrast+0.04);
+      else if(id==='DIAL') S.dialAxis=(S.dialAxis+5)%180;     // +5°
+      else S.seed++;
+      render();
+    }
     else if(key==='ok'){ S.single=!S.single; render(); }
     else if(key==='menu'){ S.showHud=!S.showHud; render(); }
     else if(key==='back'){ S.screen='EXAMS'; render(); }
