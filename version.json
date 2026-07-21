@@ -1,4 +1,4 @@
 {
-  "version": 11,
-  "notes": "Modo vertical robusto: rotação decidida pela media query de orientação do CSS (não depende do innerWidth). Corrige a grade amontoada na TV."
+  "version": 12,
+  "notes": "Modo vertical: rotação sempre no modo Vertical (via CSS) + tiles compactos para caber todos os exames em telas 960x540 (Fire TV a 2x). Corrige a grade amontoada."
 }
