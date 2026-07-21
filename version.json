@@ -1,4 +1,4 @@
 {
-  "version": 12,
-  "notes": "Modo vertical: rotação sempre no modo Vertical (via CSS) + tiles compactos para caber todos os exames em telas 960x540 (Fire TV a 2x). Corrige a grade amontoada."
+  "version": 13,
+  "notes": "Ícones grandes no modo vertical (com rolagem quando não cabem) e remoção do diagnóstico."
 }

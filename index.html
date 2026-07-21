@@ -26,15 +26,16 @@
   #root.port .screen { display:flex; flex-direction:column; }
   #root.port .wrap { min-height:0; margin-top:auto; margin-bottom:auto; padding:2vh 3vh 2vh; }
   #root.port .backhint { position:absolute; }
-  /* Tiles compactos no vertical (a largura útil é 100vh; dimensiona por vh para caber). */
-  #root.port .grid { gap:1.4vh; max-width:none; }
-  #root.port .tile { padding:1.3vh 0.6vh; gap:0.7vh; border-radius:1.4vh; }
-  #root.port .tile-ic svg { width:5.2vh; height:5.2vh; }
-  #root.port .tile-lb { font-size:2vh; line-height:1.1; }
-  #root.port .title { font-size:3.2vh; margin:1vh 0 0.3vh; }
-  #root.port .subtitle { font-size:1.9vh; margin-bottom:1vh; }
-  #root.port .status { font-size:1.9vh; }
-  #root.port .logo-badge { height:9vh; }
+  /* Tiles no vertical (dimensionados por vh, pois a largura útil = 100vh). Ícones grandes;
+     quando não cabem, a tela rola (o item selecionado é trazido para a vista ao navegar). */
+  #root.port .grid { gap:2.4vh; max-width:none; }
+  #root.port .tile { padding:2.6vh 1vh; gap:1.4vh; border-radius:2.2vh; }
+  #root.port .tile-ic svg { width:11vh; height:11vh; }
+  #root.port .tile-lb { font-size:3.4vh; line-height:1.1; }
+  #root.port .title { font-size:4vh; margin:1.2vh 0 0.3vh; }
+  #root.port .subtitle { font-size:2.2vh; margin-bottom:1.2vh; }
+  #root.port .status { font-size:2.2vh; }
+  #root.port .logo-badge { height:11vh; }
   .logo-badge { height:15vh; max-height:120px; border-radius:14px; background:#FBF6F0;
     padding:8px 16px; box-shadow:0 6px 22px #0007; }
   .title { font-size:clamp(22px,2.6vw,32px); font-weight:700; color:#fff; margin:14px 0 2px; letter-spacing:.4px; }
@@ -99,11 +100,10 @@
   <div id="hud"></div>
   <div id="warn"></div>
 </div>
-<div id="dbg" style="position:fixed;top:0;left:0;z-index:9999;background:#000;color:#0f0;font:bold 20px monospace;padding:4px 8px;pointer-events:none;display:none"></div>
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 12;
+const WEB_VERSION = 13;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -707,14 +707,6 @@ const warn = document.getElementById('warn');
 
 function render(){
   applyOrientation();
-  // DIAGNÓSTICO temporário: mostra a resolução/orientação reais fora da área girada.
-  try {
-    const dbgEl=document.getElementById('dbg');
-    const mqL = window.matchMedia('(orientation:landscape)').matches ? 1 : 0;
-    const rot = getComputedStyle(document.getElementById('root')).transform !== 'none' ? 1 : 0;
-    dbgEl.textContent = `${innerWidth}x${innerHeight} mqL:${mqL} rot:${rot} v${WEB_VERSION}`;
-    dbgEl.style.display = (S.screen==='HOME'||S.screen==='EXAMS'||S.screen==='SETTINGS') ? 'block' : 'none';
-  } catch(e){}
   // informa o app Android (Fire TV) qual tela está ativa (p/ o botão Voltar)
   try { if(window.Android && Android.onScreen) Android.onScreen(S.screen); } catch(e){}
   const isTest = S.screen==='TEST';
@@ -768,9 +760,7 @@ function renderHome(){
 }
 
 function renderExams(){
-  const dbg = `${innerWidth}×${innerHeight} · ${store.orientation} · rot:${document.getElementById('root').style.transform?'sim':'nao'} · v${WEB_VERSION}`;
   ui.innerHTML = `<div class="screen"><div class="wrap">
-    <div style="position:absolute;top:6px;left:8px;font-size:12px;color:#7fb0d8;opacity:.8;z-index:5">${dbg}</div>
     <div class="title">Exames</div>
     <div class="subtitle">Selecione o teste de acuidade</div>
     ${tileGrid(examItems(), S.examsIndex, gridCols('EXAMS'))}
