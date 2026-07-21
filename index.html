@@ -8,7 +8,11 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width:100%; height:100%; overflow:hidden; background:#0E2036;
     font-family:"Segoe UI", Roboto, Arial, sans-serif; -webkit-font-smoothing:antialiased; }
-  #root { position: fixed; inset: 0; }
+  #root { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+  /* Modo vertical: se a SAÍDA está em paisagem, gira 90°. Se já está em retrato, não gira. */
+  @media (orientation: landscape) {
+    #root.port { width:100vh; height:100vw; transform-origin:0 0; transform:translate(100vw,0) rotate(90deg); }
+  }
   canvas { position:absolute; inset:0; display:none; }
   #ui { position:absolute; inset:0; }
 
@@ -87,10 +91,11 @@
   <div id="hud"></div>
   <div id="warn"></div>
 </div>
+<div id="dbg" style="position:fixed;top:0;left:0;z-index:9999;background:#000;color:#0f0;font:bold 20px monospace;padding:4px 8px;pointer-events:none;display:none"></div>
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 10;
+const WEB_VERSION = 11;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -315,21 +320,11 @@ let W = 0, H = 0;
 // Aplica a orientação escolhida. 'port' gira todo o conteúdo 90° (para monitor montado
 // na vertical). O #root passa a ter largura=alturaDaTela e altura=larguraDaTela.
 function applyOrientation(){
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const physicalPortrait = store.orientation==='port';   // monitor montado na vertical
-  const framebufferPortrait = vh > vw;                    // a saída já está em retrato?
-  const needRotate = physicalPortrait !== framebufferPortrait; // só gira quando há divergência
-  // A classe .port controla o LAYOUT (colunas/centralização) e segue a orientação física.
-  root.classList.toggle('port', physicalPortrait);
-  if(needRotate){
-    root.style.transformOrigin = '0 0';
-    root.style.width  = vh+'px';
-    root.style.height = vw+'px';
-    root.style.transform = 'translate('+vw+'px,0) rotate(90deg)';
-  } else {
-    root.style.transform = '';
-    root.style.width = ''; root.style.height = '';
-  }
+  // A classe .port ativa o LAYOUT vertical (colunas/centralização) e, via CSS media query,
+  // a rotação de 90° APENAS quando a saída de vídeo está em paisagem. Tudo decidido pelo CSS
+  // (orientation), que reflete a renderização real — não depende do innerWidth do JS.
+  root.classList.toggle('port', store.orientation==='port');
+  root.style.transform=''; root.style.width=''; root.style.height=''; root.style.transformOrigin='';
 }
 function resizeCanvas(){
   const dpr = window.devicePixelRatio || 1;
@@ -704,6 +699,12 @@ const warn = document.getElementById('warn');
 
 function render(){
   applyOrientation();
+  // DIAGNÓSTICO temporário: mostra a resolução/orientação reais fora da área girada.
+  try {
+    const dbgEl=document.getElementById('dbg');
+    dbgEl.textContent = `${innerWidth}x${innerHeight} ${store.orientation} rot:${document.getElementById('root').style.transform?'S':'N'} v${WEB_VERSION}`;
+    dbgEl.style.display = (S.screen==='HOME'||S.screen==='EXAMS'||S.screen==='SETTINGS') ? 'block' : 'none';
+  } catch(e){}
   // informa o app Android (Fire TV) qual tela está ativa (p/ o botão Voltar)
   try { if(window.Android && Android.onScreen) Android.onScreen(S.screen); } catch(e){}
   const isTest = S.screen==='TEST';

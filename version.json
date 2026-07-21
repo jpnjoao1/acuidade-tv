@@ -1,4 +1,4 @@
 {
-  "version": 10,
-  "notes": "Diagnóstico temporário na tela de Exames (resolução/orientação) para ajustar o modo vertical."
+  "version": 11,
+  "notes": "Modo vertical robusto: rotação decidida pela media query de orientação do CSS (não depende do innerWidth). Corrige a grade amontoada na TV."
 }
