@@ -90,7 +90,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 9;
+const WEB_VERSION = 10;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -757,7 +757,9 @@ function renderHome(){
 }
 
 function renderExams(){
+  const dbg = `${innerWidth}×${innerHeight} · ${store.orientation} · rot:${document.getElementById('root').style.transform?'sim':'nao'} · v${WEB_VERSION}`;
   ui.innerHTML = `<div class="screen"><div class="wrap">
+    <div style="position:absolute;top:6px;left:8px;font-size:12px;color:#7fb0d8;opacity:.8;z-index:5">${dbg}</div>
     <div class="title">Exames</div>
     <div class="subtitle">Selecione o teste de acuidade</div>
     ${tileGrid(examItems(), S.examsIndex, gridCols('EXAMS'))}

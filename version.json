@@ -1,4 +1,4 @@
 {
-  "version": 9,
-  "notes": "Novo exame: Tela branca (tela 100% branca, sem painel)."
+  "version": 10,
+  "notes": "Diagnóstico temporário na tela de Exames (resolução/orientação) para ajustar o modo vertical."
 }
