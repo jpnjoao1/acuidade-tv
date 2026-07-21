@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acuidade Visual — teste no PC</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #fff;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif; }
+  #root { position: fixed; inset: 0; }
+  canvas { position: absolute; inset: 0; display: none; }
+  #ui { position: absolute; inset: 0; }
+
+  /* ---- Paleta da marca (Clínica da Visão Santa Luzia) ---- */
+  :root { --cream:#FBF6F0; --gold:#C6A24C; --navy:#26375F; }
+
+  /* ---- HOME ---- */
+  .home { position:absolute; inset:0; background:var(--cream); color:var(--navy); padding:3vh 5vw; overflow:auto; }
+  .home .logo { display:block; margin:0 auto 6px; height:20vh; max-height:170px; }
+  .home h1 { font-size: 26px; margin-bottom: 4px; text-align:center; color:var(--navy); font-weight:600; }
+  .status { font-size: 17px; margin-bottom: 18px; text-align:center; }
+  .status.ok { color:#2E7D32; } .status.warn { color:#B8860B; }
+  .item { display:block; padding:11px 20px; margin:6px 0; border-radius:10px;
+    background:#26375F12; border:1px solid transparent; }
+  .item.sel { background:var(--gold); border-color:var(--navy); }
+  .item .t { font-size: 21px; color:var(--navy); }
+  .item.sel .t { font-weight: 700; }
+  .item .s { font-size: 14px; color:#26375Fbb; }
+  .item.sel .s { color:#3a2f12; }
+  .foot { margin-top:16px; font-size:15px; color:#26375F99; text-align:center; }
+
+  /* ---- CALIBRAÇÃO / DISTÂNCIA / etc ---- */
+  .sheet { position:absolute; inset:0; background:var(--cream); color:var(--navy); }
+  .sheet .logo-sm { position:absolute; top:3vh; right:4vw; height:12vh; max-height:110px; opacity:.95; }
+  .sheet .info { position:absolute; top:5vh; left:5vw; max-width:60vw; }
+  .sheet h2 { font-size:28px; margin-bottom:10px; color:var(--navy); }
+  .sheet p { font-size:18px; margin:4px 0; }
+  .sheet .big { color:var(--gold); font-weight:700; }
+  .calibar { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    height:12px; background:#000; }
+  .calibar::before, .calibar::after { content:""; position:absolute; top:-28px; width:4px; height:68px; background:#000; }
+  .calibar::before { left:0; } .calibar::after { right:0; }
+  .distbox { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; }
+  .distbox .m { font-size:90px; font-weight:700; color:var(--navy); font-family:monospace; }
+  .distbox .cm { font-size:24px; color:#6b5c3a; }
+  .distbox .note { font-size:18px; color:#6b5c3a; margin-top:20px; }
+  .hint { position:absolute; bottom:24px; left:0; right:0; text-align:center;
+    color:#666; font-size:15px; }
+
+  /* ---- HUD do teste ---- */
+  #hud { position:absolute; top:10px; left:10px; background:#101820cc; color:#fff;
+    padding:10px 14px; border-radius:8px; display:none; }
+  #hud .h1 { font-size:16px; font-weight:700; }
+  #hud .h2 { font-size:14px; color:#9BD0FF; }
+  #hud .h3 { font-size:13px; color:#bbb; }
+  #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; }
+  #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    color:#B00020; font-size:15px; display:none; background:#fff; padding:2px 8px; }
+</style>
+</head>
+<body>
+<div id="root">
+  <canvas id="c"></canvas>
+  <div id="ui"></div>
+  <div id="hud"></div>
+  <div id="warn"></div>
+</div>
+<script>
+// Versão da interface. Precisa bater com web/version.json — é incrementada a cada
+// atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
+const WEB_VERSION = 1;
+
+// =====================================================================================
+// NÚCLEO ÓPTICO (mesma matemática do app Android)
+// =====================================================================================
+const AcuityLogMar = [1.0,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.0,-0.1,-0.2,-0.3];
+const DEFAULT_ACUITY_INDEX = 3;
+
+const snellenFeet   = lm => Math.round(20 * Math.pow(10, lm));
+const snellenMeters = lm => Math.round(6  * Math.pow(10, lm));
+const decimalAc     = lm => Math.pow(10, -lm);
+function optotypeHeightMm(lm, distMm){
+  const arcMin = 5 * Math.pow(10, lm);
+  const angle = (arcMin/60) * Math.PI/180;
+  return 2 * distMm * Math.tan(angle/2);
+}
+const optotypeHeightPx = (lm, distMm, pxPerMm) => optotypeHeightMm(lm, distMm) * pxPerMm;
+
+// =====================================================================================
+// DEFINIÇÕES DE TESTE
+// =====================================================================================
+const TESTS = [
+  { id:'SNELLEN',  title:'Tabela Snellen',        sub:'Letras clássicas. Triagem padrão.',            scale:true },
+  { id:'LOGMAR',   title:'LogMAR / ETDRS',        sub:'Letras Sloan em progressão logarítmica.',      scale:true },
+  { id:'NUMBERS',  title:'Números',               sub:'Optótipos numéricos para quem não lê letras.', scale:true },
+  { id:'E',        title:'E de Snellen (Tumbling E)', sub:'Paciente indica a direção das hastes.',     scale:true, dir:true },
+  { id:'LANDOLT',  title:'Anel de Landolt',       sub:'Paciente indica onde está a abertura.',        scale:true, dir:true },
+  { id:'LEA',      title:'Símbolos LEA (infantil)', sub:'Círculo, quadrado, casa e coração.',         scale:true },
+  { id:'DIAL',     title:'Dial astigmático',      sub:'Relógio radial para triagem de astigmatismo.', scale:false },
+  { id:'DUO',      title:'Teste duocromo (verde/vermelho)', sub:'Equilíbrio de foco (miopia/hiper).', scale:true },
+  { id:'CONTRAST', title:'Sensibilidade ao contraste', sub:'Letra fixa, contraste ajustável.',        scale:false },
+  { id:'ISHIHARA', title:'Visão de cores (triagem)', sub:'Placas pseudoisocromáticas. Só triagem.',   scale:false },
+];
+const SLOAN   = ['C','D','H','K','N','O','R','S','V','Z'];
+const SNELLEN = ['C','D','E','F','L','N','O','P','R','T','Z'];
+const DIGITS  = ['2','3','4','5','6','7','8','9'];
+function pool(id){ return id==='SNELLEN'?SNELLEN : id==='NUMBERS'?DIGITS : SLOAN; }
+
+const REF_OBJECTS = [
+  { name:'Cartão (crédito / RG)', mm:85.6 },
+  { name:'Régua — marca de 10 cm', mm:100 },
+  { name:'Régua — marca de 5 cm', mm:50 },
+  { name:'Cédula R$ (comprimento 14 cm)', mm:140 },
+];
+
+// =====================================================================================
+// ESTADO
+// =====================================================================================
+const store = {
+  get pxPerMm(){ return parseFloat(localStorage.getItem('pxPerMm')||'0'); },
+  set pxPerMm(v){ localStorage.setItem('pxPerMm', v); },
+  get distanceCm(){ return parseFloat(localStorage.getItem('distanceCm')||'300'); },
+  set distanceCm(v){ localStorage.setItem('distanceCm', v); },
+  get orientation(){ return localStorage.getItem('orientation')||'land'; }, // 'land' | 'port'
+  set orientation(v){ localStorage.setItem('orientation', v); },
+  get inches(){ return parseFloat(localStorage.getItem('inches')||'32'); },
+  set inches(v){ localStorage.setItem('inches', v); },
+  get calibrated(){ return this.pxPerMm > 0; },
+  get distanceMm(){ return this.distanceCm * 10; },
+};
+
+// Resolução física detectada (em CSS px). Serve para a calibração automática por polegadas.
+function detectedResolution(){
+  const w = window.screen ? (screen.width || 0) : 0;
+  const h = window.screen ? (screen.height || 0) : 0;
+  // usa o maior lado como "largura" para não depender da orientação do SO
+  return { w: Math.max(w, h), h: Math.min(w, h) };
+}
+// px/mm calculado a partir da diagonal em polegadas + resolução detectada.
+function autoPxPerMm(inches){
+  const r = detectedResolution();
+  if(!r.w || !r.h) return 0;
+  const diagPx = Math.sqrt(r.w*r.w + r.h*r.h);
+  const diagMm = inches * 25.4;
+  return diagPx / diagMm;
+}
+
+const S = {
+  screen: 'HOME',            // HOME | CALIB | DIST | TEST
+  menuIndex: 0,
+  test: TESTS[0],
+  acuityIndex: DEFAULT_ACUITY_INDEX,
+  seed: (Math.random()*100000)|0,
+  single: false,
+  showHud: true,
+  contrast: 1.0,
+  calibLengthPx: 400,
+  refIndex: 0,
+  distanceCm: store.distanceCm,
+  inches: store.inches,
+  orientWork: store.orientation,
+  settingsIndex: 0,
+  savedFlash: false,
+  updateStatus: '',
+};
+
+// Menu = [Calibrar, Distância, ...testes]
+function menuItems(){
+  return [
+    { kind:'settings', label:'⚙  Configurações', hint:'Calibração, orientação da tela e distância' },
+    ...TESTS.map(t => ({ kind:'test', test:t, label:t.title, hint:t.sub })),
+  ];
+}
+
+function settingsItems(){
+  return [
+    { kind:'autocal', label:'Calibração automática (polegadas)', hint:'Informe o tamanho da tela; calcula sozinho' },
+    { kind:'calib',   label:'Calibração por objeto', hint:'Método manual: cartão/régua na tela' },
+    { kind:'orient',  label:'Orientação da tela', hint:'Horizontal ou vertical' },
+    { kind:'dist',    label:'Distância do paciente', hint:'Ajuste a distância paciente → tela' },
+    { kind:'save',    label:'💾  Salvar configurações', hint:'Grava tudo; carrega automaticamente ao abrir o app' },
+    { kind:'update',  label:'🔄  Atualização', hint:'Ver a versão atual e buscar nova versão' },
+  ];
+}
+
+// (Re)grava as configurações atuais no armazenamento local do app.
+function saveAllSettings(){
+  store.pxPerMm = store.pxPerMm;
+  store.distanceCm = store.distanceCm;
+  store.orientation = store.orientation;
+  store.inches = store.inches;
+}
+
+// =====================================================================================
+// RNG determinístico (mulberry32)
+// =====================================================================================
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function pickLetters(id, seed, acuityIndex, count){
+  const p = pool(id);
+  const rnd = mulberry32(seed*31 + acuityIndex*7 + id.length);
+  const out = [];
+  for(let i=0;i<count;i++) out.push(p[(rnd()*p.length)|0]);
+  return out;
+}
+const orientationFrom = seed => Math.abs(seed) % 4;
+
+// =====================================================================================
+// CANVAS
+// =====================================================================================
+const root = document.getElementById('root');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+
+// Aplica a orientação escolhida. 'port' gira todo o conteúdo 90° (para monitor montado
+// na vertical). O #root passa a ter largura=alturaDaTela e altura=larguraDaTela.
+function applyOrientation(){
+  const vw = window.innerWidth, vh = window.innerHeight;
+  if(store.orientation==='port'){
+    root.style.transformOrigin = '0 0';
+    root.style.width  = vh+'px';
+    root.style.height = vw+'px';
+    root.style.transform = 'translate('+vw+'px,0) rotate(90deg)';
+  } else {
+    root.style.transform = '';
+    root.style.width = ''; root.style.height = '';
+  }
+}
+function resizeCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  W = root.clientWidth  || window.innerWidth;
+  H = root.clientHeight || window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', () => { applyOrientation(); render(); });
+
+const OPTO_FONT = '"Sloan", "Arial", sans-serif';
+
+function setFontForCapHeight(target){
+  ctx.font = 'bold 100px '+OPTO_FONT;
+  const m = ctx.measureText('E');
+  const h = (m.actualBoundingBoxAscent||70) + (m.actualBoundingBoxDescent||0);
+  const size = 100 * target / (h||70);
+  ctx.font = 'bold '+size+'px '+OPTO_FONT;
+}
+function drawGlyph(text, cx, cy, heightPx, color='#000'){
+  setFontForCapHeight(heightPx);
+  ctx.fillStyle = color; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text, cx, cy);
+}
+function drawGlyphRow(letters, cy, heightPx, color='#000'){
+  setFontForCapHeight(heightPx);
+  const adv = ctx.measureText('E').width;
+  const gap = adv;
+  const total = letters.length*adv + (letters.length-1)*gap;
+  let x = (W-total)/2 + adv/2;
+  ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const l of letters){ ctx.fillText(l, x, cy); x += adv+gap; }
+}
+function drawGlyphRowInBox(letters, left, width, cy, heightPx){
+  setFontForCapHeight(heightPx);
+  const adv = ctx.measureText('E').width, gap = adv*0.6;
+  const total = letters.length*adv + (letters.length-1)*gap;
+  let x = left + (width-total)/2 + adv/2;
+  ctx.fillStyle='#000'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const l of letters){ ctx.fillText(l, x, cy); x += adv+gap; }
+}
+
+function withRot(cx, cy, orient, fn){
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(orient*Math.PI/2); ctx.translate(-cx,-cy);
+  fn(); ctx.restore();
+}
+function drawTumblingE(cx, cy, size, orient){
+  withRot(cx, cy, orient, () => {
+    const cell = size/5, left = cx-size/2, top = cy-size/2;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(left, top, cell, size);
+    ctx.fillRect(left, top, size, cell);
+    ctx.fillRect(left, top+2*cell, size, cell);
+    ctx.fillRect(left, top+4*cell, size, cell);
+  });
+}
+function drawLandolt(cx, cy, size, orient){
+  withRot(cx, cy, orient, () => {
+    const outer=size/2, t=size/5, inner=outer-t;
+    ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(cx,cy,outer,0,2*Math.PI); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,inner,0,2*Math.PI); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.fillRect(cx, cy-t/2, outer+2, t);
+  });
+}
+
+const LEA = ['CIRCLE','SQUARE','HOUSE','HEART'];
+function drawLea(sym, cx, cy, size, color='#000'){
+  const w=size, h=size, left=cx-w/2, top=cy-h/2;
+  ctx.fillStyle=color;
+  if(sym==='CIRCLE'){ ctx.beginPath(); ctx.arc(cx,cy,h/2,0,2*Math.PI); ctx.fill(); }
+  else if(sym==='SQUARE'){ ctx.fillRect(left,top,w,h); }
+  else if(sym==='HOUSE'){
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(left+w, top+h*0.4);
+    ctx.lineTo(left+w, top+h);
+    ctx.lineTo(left, top+h);
+    ctx.lineTo(left, top+h*0.4);
+    ctx.closePath(); ctx.fill();
+  } else { // HEART
+    ctx.beginPath();
+    ctx.moveTo(cx, top+h);
+    ctx.bezierCurveTo(left-w*0.1, top+h*0.55, left+w*0.15, top, cx, top+h*0.30);
+    ctx.bezierCurveTo(left+w*0.85, top, left+w*1.1, top+h*0.55, cx, top+h);
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawLeaRow(syms, cy, size){
+  const gap=size, total=syms.length*size+(syms.length-1)*gap;
+  let x=(W-total)/2 + size/2;
+  for(const s of syms){ drawLea(s,x,cy,size); x+=size+gap; }
+}
+
+function drawDial(){
+  const cx=W/2, cy=H/2, r=Math.min(W,H)*0.42, st=r*0.02;
+  ctx.strokeStyle='#000'; ctx.lineWidth=st;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI); ctx.stroke();
+  ctx.lineWidth=st*1.4;
+  for(let deg=0; deg<360; deg+=30){
+    const a=deg*Math.PI/180, dx=Math.cos(a), dy=Math.sin(a), inner=r*0.12;
+    ctx.beginPath();
+    ctx.moveTo(cx+dx*inner, cy+dy*inner);
+    ctx.lineTo(cx+dx*r, cy+dy*r);
+    ctx.stroke();
+  }
+}
+function drawDuochrome(letters, heightPx){
+  const half=W/2;
+  ctx.fillStyle='#D40000'; ctx.fillRect(0,0,half,H);
+  ctx.fillStyle='#008A2E'; ctx.fillRect(half,0,half,H);
+  const cy=H/2;
+  drawGlyphRowInBox(letters, 0, half, cy, heightPx);
+  drawGlyphRowInBox(letters, half, half, cy, heightPx);
+}
+function drawContrastLetter(text, heightPx, cf){
+  const g = Math.round(255*(1-cf));
+  drawGlyph(text, W/2, H/2, heightPx, `rgb(${g},${g},${g})`);
+}
+
+const FIG = ['#6DA544','#8FB65A','#57902F'];
+const BG  = ['#E7A977','#EFC08A','#D98B5F','#E9B98D'];
+function drawIshihara(digit, seed, reveal){
+  const plate=Math.min(W,H)*0.82, cx=W/2, cy=H/2, left=cx-plate/2, top=cy-plate/2;
+  const md=300, mc=document.createElement('canvas'); mc.width=md; mc.height=md;
+  const m=mc.getContext('2d');
+  m.fillStyle='#000'; m.textAlign='center'; m.textBaseline='middle';
+  m.font='bold '+(md*0.62)+'px sans-serif';
+  m.fillText(''+digit, md/2, md/2);
+  const data=m.getImageData(0,0,md,md).data;
+  const rnd=mulberry32(seed + digit*131);
+  const cell=plate/46, dotR=cell*0.44, plateR=plate/2;
+  for(let gy=0; gy<46; gy++) for(let gx=0; gx<46; gx++){
+    const jx=(gx+0.5+(rnd()-0.5)*0.5)*cell;
+    const jy=(gy+0.5+(rnd()-0.5)*0.5)*cell;
+    const px=left+jx, py=top+jy, ddx=px-cx, ddy=py-cy;
+    if(ddx*ddx+ddy*ddy > (plateR-dotR)*(plateR-dotR)) continue;
+    const mx=Math.min(md-1, Math.max(0, (jx/plate*md)|0));
+    const my=Math.min(md-1, Math.max(0, (jy/plate*md)|0));
+    const onFig = data[(my*md+mx)*4+3] > 40;
+    const pal = onFig ? FIG : BG;
+    const c = pal[(rnd()*pal.length)|0];
+    const r = dotR*(0.75 + rnd()*0.35);
+    ctx.fillStyle=c; ctx.beginPath(); ctx.arc(px,py,r,0,2*Math.PI); ctx.fill();
+  }
+  if(reveal) drawGlyph(''+digit, cx, cy, plate*0.5, 'rgba(0,0,0,0.33)');
+}
+
+function drawDirectionalRow(seed, heightPx, drawFn){
+  const count=4, gap=heightPx, total=count*heightPx+(count-1)*gap;
+  let x=(W-total)/2 + heightPx/2;
+  for(let i=0;i<count;i++){ drawFn(x, heightPx, Math.abs(seed+i*13)%4); x+=heightPx+gap; }
+}
+
+// =====================================================================================
+// RENDER DO TESTE (canvas)
+// =====================================================================================
+function drawTest(){
+  resizeCanvas(); // garante W/H atuais (evita canvas 1px se o layout ainda não estava pronto)
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const lm = AcuityLogMar[S.acuityIndex];
+  const cx=W/2, cy=H/2;
+  let heightPx;
+  if(store.calibrated) heightPx = optotypeHeightPx(lm, store.distanceMm, store.pxPerMm);
+  else heightPx = H*0.5*Math.pow(10, lm-1.0); // fallback aproximado
+
+  switch(S.test.id){
+    case 'SNELLEN': case 'LOGMAR': case 'NUMBERS': {
+      const letters = pickLetters(S.test.id, S.seed, S.acuityIndex, S.single?1:5);
+      if(S.single) drawGlyph(letters[0], cx, cy, heightPx);
+      else drawGlyphRow(letters, cy, heightPx);
+      break;
+    }
+    case 'E':
+      if(S.single) drawTumblingE(cx, cy, heightPx, orientationFrom(S.seed));
+      else drawDirectionalRow(S.seed, heightPx, (x,s,o)=>drawTumblingE(x,cy,s,o));
+      break;
+    case 'LANDOLT':
+      if(S.single) drawLandolt(cx, cy, heightPx, orientationFrom(S.seed));
+      else drawDirectionalRow(S.seed, heightPx, (x,s,o)=>drawLandolt(x,cy,s,o));
+      break;
+    case 'LEA':
+      if(S.single) drawLea(LEA[Math.abs(S.seed)%LEA.length], cx, cy, heightPx);
+      else drawLeaRow([0,1,2,3].map(i=>LEA[Math.abs(S.seed+i*7)%LEA.length]), cy, heightPx);
+      break;
+    case 'DIAL': drawDial(); break;
+    case 'DUO': drawDuochrome(pickLetters('LOGMAR', S.seed, S.acuityIndex, 3), heightPx); break;
+    case 'CONTRAST': {
+      const letter = pickLetters('LOGMAR', S.seed, S.acuityIndex, 1)[0];
+      const h = store.calibrated ? heightPx : H*0.12;
+      drawContrastLetter(letter, h, S.contrast);
+      break;
+    }
+    case 'ISHIHARA': drawIshihara(1+(Math.abs(S.seed)%9), S.seed, S.single); break;
+  }
+}
+
+// =====================================================================================
+// RENDER GERAL
+// =====================================================================================
+const ui = document.getElementById('ui');
+const hud = document.getElementById('hud');
+const warn = document.getElementById('warn');
+
+function render(){
+  applyOrientation();
+  // informa o app Android (Fire TV) qual tela está ativa (p/ o botão Voltar)
+  try { if(window.Android && Android.onScreen) Android.onScreen(S.screen); } catch(e){}
+  const isTest = S.screen==='TEST';
+  canvas.style.display = isTest ? 'block' : 'none';
+  hud.style.display = 'none'; warn.style.display='none';
+
+  if(S.screen==='HOME') renderHome();
+  else if(S.screen==='SETTINGS') renderSettings();
+  else if(S.screen==='UPDATE') renderUpdate();
+  else if(S.screen==='AUTOCAL') renderAutoCal();
+  else if(S.screen==='CALIB') renderCalib();
+  else if(S.screen==='ORIENT') renderOrient();
+  else if(S.screen==='DIST') renderDist();
+  else if(S.screen==='TEST'){ ui.innerHTML=''; drawTest(); renderHud(); }
+}
+
+function renderHome(){
+  const items = menuItems();
+  const calib = store.calibrated
+    ? `Calibrado: ${store.pxPerMm.toFixed(2)} px/mm`
+    : '⚠ Tela ainda não calibrada';
+  const rows = items.map((it,i)=>`
+    <div class="item ${i===S.menuIndex?'sel':''}">
+      <div class="t">${it.label}</div><div class="s">${it.hint}</div>
+    </div>`).join('');
+  const orient = store.orientation==='port' ? 'Vertical' : 'Horizontal';
+  ui.innerHTML = `<div class="home">
+    <img class="logo" src="logo.jpg" alt="Clínica da Visão Santa Luzia">
+    <h1>Acuidade Visual — exames de acuidade</h1>
+    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância: ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela: ${orient}</div>
+    ${rows}
+    <div class="foot">▲▼ navegar &nbsp;•&nbsp; Enter selecionar &nbsp;•&nbsp; Esc voltar &nbsp;|&nbsp; teclado = controle remoto</div>
+  </div>`;
+  scrollSelectedIntoView();
+}
+
+function renderSettings(){
+  const calib = store.calibrated ? `Calibrado: ${store.pxPerMm.toFixed(2)} px/mm` : '⚠ Tela ainda não calibrada';
+  const orient = store.orientation==='port' ? 'Vertical' : 'Horizontal';
+  const inches = store.inches ? ` &nbsp;•&nbsp; Tela ${store.inches.toFixed(1)}"` : '';
+  const items = settingsItems();
+  const rows = items.map((it,i)=>`
+    <div class="item ${i===S.settingsIndex?'sel':''}">
+      <div class="t">${it.label}</div><div class="s">${it.hint}</div>
+    </div>`).join('');
+  const flash = S.savedFlash
+    ? `<div class="status ok">✓ Configurações salvas — serão carregadas automaticamente ao abrir o app.</div>` : '';
+  ui.innerHTML = `<div class="home">
+    <img class="logo" src="logo.jpg" alt="Clínica da Visão Santa Luzia">
+    <h1>Configurações</h1>
+    <div class="status ${store.calibrated?'ok':'warn'}">${calib} &nbsp;•&nbsp; Distância: ${Math.round(store.distanceCm)} cm &nbsp;•&nbsp; Tela: ${orient}${inches}</div>
+    ${flash}
+    ${rows}
+    <div class="foot">▲▼ navegar &nbsp;•&nbsp; Enter abrir &nbsp;•&nbsp; Esc voltar ao menu</div>
+  </div>`;
+  scrollSelectedIntoView();
+}
+
+function renderUpdate(){
+  const emApp = !!(window.Android && window.Android.checkUpdate);
+  const st = S.updateStatus || (emApp
+    ? 'Pressione OK para buscar uma nova versão.'
+    : 'A atualização automática funciona apenas no app do Fire TV. No navegador, recarregue a página.');
+  ui.innerHTML = `<div class="sheet">
+    <img class="logo-sm" src="logo.jpg" alt="">
+    <div class="distbox">
+      <div style="font-size:26px;font-weight:700">Atualização</div>
+      <div class="m" style="font-size:60px">v${WEB_VERSION}</div>
+      <div class="cm">versão da interface instalada</div>
+      <div class="note" style="max-width:70vw;text-align:center">${st}</div>
+    </div>
+    <div class="hint">Enter buscar atualização &nbsp;•&nbsp; Esc voltar</div>
+  </div>`;
+}
+
+// Chamado pelo app Android após checar atualização (estados: verificando/atualizado/atual/offline/erro).
+window.__updateStatus = function(state){
+  const msgs = {
+    verificando: 'Verificando atualizações…',
+    atualizado: '✓ Atualizado! Carregando a nova versão…',
+    atual: '✓ Você já está na versão mais recente.',
+    offline: 'Sem internet — mantida a versão local (offline).',
+    erro: 'Não foi possível verificar agora. Tente novamente.'
+  };
+  S.updateStatus = msgs[state] || state;
+  if(S.screen==='UPDATE') render();
+};
+
+// Rola o menu para manter o item selecionado sempre visível (navegação só por D-pad).
+function scrollSelectedIntoView(){
+  const home = ui.querySelector('.home');
+  const sel = ui.querySelector('.item.sel');
+  if(!home || !sel) return;
+  const pad = 16;
+  const selTop = sel.offsetTop;
+  const selBot = selTop + sel.offsetHeight;
+  // Se a seleção couber já mostrando o topo (logo/cabeçalho), fica no topo.
+  if(selBot <= home.clientHeight - pad){ home.scrollTop = 0; return; }
+  const viewTop = home.scrollTop;
+  const viewBot = viewTop + home.clientHeight;
+  if(selTop < viewTop + pad) home.scrollTop = Math.max(0, selTop - pad);
+  else if(selBot > viewBot - pad) home.scrollTop = selBot - home.clientHeight + pad;
+}
+
+function renderAutoCal(){
+  const r = detectedResolution();
+  const px = autoPxPerMm(S.inches);
+  const resTxt = (r.w && r.h) ? `${r.w} × ${r.h} px` : 'não detectada';
+  const pxTxt = px>0 ? `${px.toFixed(2)} pixels/mm` : '— (resolução não detectada; use a calibração por objeto)';
+  ui.innerHTML = `<div class="sheet">
+    <img class="logo-sm" src="logo.jpg" alt="">
+    <div class="info">
+      <h2>Calibração automática</h2>
+      <p>Informe o tamanho da tela (diagonal, em polegadas). O app usa a resolução detectada para calcular o tamanho real dos pixels.</p>
+      <p class="big" style="font-size:64px;margin:14px 0">${S.inches.toFixed(1)}"</p>
+      <p>Resolução detectada: <b>${resTxt}</b></p>
+      <p class="big">Resultado: ${pxTxt}</p>
+      <p style="color:#888;margin-top:10px;font-size:15px">Dica: confira com a calibração por objeto na 1ª vez. Ex.: TV 43" Full HD ≈ 2,0 px/mm; monitor 24" 4K ≈ 7,2 px/mm.</p>
+    </div>
+    <div class="hint">◀ ▶ ±0,5" &nbsp;•&nbsp; ▲▼ ±1" &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
+  </div>`;
+}
+
+function renderOrient(){
+  const isPort = S.orientWork==='port';
+  ui.innerHTML = `<div class="sheet">
+    <img class="logo-sm" src="logo.jpg" alt="">
+    <div class="distbox">
+      <div style="font-size:26px;font-weight:700">Orientação da tela</div>
+      <div style="display:flex;gap:24px;margin:30px 0">
+        <div style="padding:20px 30px;border-radius:12px;border:3px solid ${!isPort?'#0B5FA5':'#ccc'};background:${!isPort?'#E8F1FA':'#fff'}">
+          <div style="width:120px;height:70px;background:#333;border-radius:4px;margin:0 auto"></div>
+          <div style="margin-top:10px;font-size:20px;font-weight:${!isPort?'700':'400'}">Horizontal</div>
+        </div>
+        <div style="padding:20px 30px;border-radius:12px;border:3px solid ${isPort?'#0B5FA5':'#ccc'};background:${isPort?'#E8F1FA':'#fff'}">
+          <div style="width:70px;height:120px;background:#333;border-radius:4px;margin:0 auto"></div>
+          <div style="margin-top:10px;font-size:20px;font-weight:${isPort?'700':'400'}">Vertical</div>
+        </div>
+      </div>
+      <div class="note">Escolha conforme o monitor está montado fisicamente.</div>
+    </div>
+    <div class="hint">◀ ▶ alternar &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
+  </div>`;
+}
+
+function renderCalib(){
+  const ref = REF_OBJECTS[S.refIndex];
+  const pxPerMm = S.calibLengthPx / ref.mm;
+  ui.innerHTML = `<div class="sheet">
+    <img class="logo-sm" src="logo.jpg" alt="">
+    <div class="info">
+      <h2>Calibração da tela</h2>
+      <p><b>Objeto de referência:</b> ${ref.name}</p>
+      <p>Largura real: ${ref.mm} mm</p>
+      <p style="margin-top:12px">Encoste o objeto na tela sobre a barra preta e ajuste até coincidir exatamente.</p>
+      <p class="big" style="margin-top:10px">Resultado: ${pxPerMm.toFixed(2)} pixels/mm</p>
+    </div>
+    <div class="calibar" style="width:${S.calibLengthPx}px"></div>
+    <div class="hint">◀ ▶ ajustar &nbsp;•&nbsp; ▲▼ trocar objeto &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
+  </div>`;
+}
+
+function renderDist(){
+  const m = (S.distanceCm/100).toFixed(2);
+  ui.innerHTML = `<div class="sheet">
+    <img class="logo-sm" src="logo.jpg" alt="">
+    <div class="distbox">
+      <div style="font-size:26px;font-weight:700">Distância paciente → tela</div>
+      <div class="m">${m} m</div>
+      <div class="cm">(${Math.round(S.distanceCm)} cm)</div>
+      <div class="note">Distância clínica usual: 3 m (300 cm).</div>
+    </div>
+    <div class="hint">◀ ▶ ±5 cm &nbsp;•&nbsp; ▲▼ ±50 cm &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
+  </div>`;
+}
+
+function renderHud(){
+  if(store.calibrated===false && S.test.scale){
+    warn.textContent='⚠ Tela não calibrada — tamanho apenas aproximado. Calibre no menu.';
+    warn.style.display='block';
+  }
+  if(!S.showHud) return;
+  const lm = AcuityLogMar[S.acuityIndex];
+  const acuity = S.test.scale
+    ? `<div class="h2">20/${snellenFeet(lm)} • 6/${snellenMeters(lm)} • dec ${decimalAc(lm).toFixed(2)} • logMAR ${lm>=0?'+':''}${lm.toFixed(1)}</div>` : '';
+  const contrast = S.test.id==='CONTRAST' ? `<div class="h2">Contraste: ${Math.round(S.contrast*100)}%</div>` : '';
+  hud.innerHTML = `<div class="h1">${S.test.title}</div>${acuity}${contrast}
+    <div class="h3">Distância ${Math.round(store.distanceCm)} cm</div>
+    <div class="h4">${hintFor()}</div>
+    <div class="h4" style="color:#ffffff66">M: ocultar/mostrar este painel</div>`;
+  hud.style.display='block';
+}
+function hintFor(){
+  switch(S.test.id){
+    case 'CONTRAST': return '◀▶ ajustar contraste • tamanho fixo';
+    case 'DIAL': return 'Padrão fixo — peça a linha mais nítida.';
+    case 'ISHIHARA': return '◀▶ trocar número • Enter revelar/ocultar';
+    case 'E': case 'LANDOLT': return '▲▼ tamanho • ◀▶ nova orientação • Enter 1 optótipo/fila';
+    default: return '▲▼ tamanho • ◀▶ embaralhar • Enter 1 optótipo/fila';
+  }
+}
+
+// =====================================================================================
+// CONTROLE (teclado = D-pad do controle remoto)
+// =====================================================================================
+function openTest(t){
+  S.test=t; S.acuityIndex=DEFAULT_ACUITY_INDEX;
+  S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
+  S.screen='TEST';
+}
+function handle(key){
+  const items = menuItems();
+  if(S.screen==='HOME'){
+    if(key==='up'){ S.menuIndex=(S.menuIndex-1+items.length)%items.length; render(); }
+    else if(key==='down'){ S.menuIndex=(S.menuIndex+1)%items.length; render(); }
+    else if(key==='ok'){
+      const it=items[S.menuIndex];
+      if(it.kind==='settings'){ S.settingsIndex=0; S.savedFlash=false; S.screen='SETTINGS'; }
+      else openTest(it.test);
+      render();
+    }
+    return;
+  }
+  if(S.screen==='SETTINGS'){
+    const sitems = settingsItems();
+    if(key==='up'){ S.settingsIndex=(S.settingsIndex-1+sitems.length)%sitems.length; S.savedFlash=false; render(); }
+    else if(key==='down'){ S.settingsIndex=(S.settingsIndex+1)%sitems.length; S.savedFlash=false; render(); }
+    else if(key==='ok'){
+      const it=sitems[S.settingsIndex];
+      if(it.kind==='autocal'){ S.inches=store.inches; S.screen='AUTOCAL'; }
+      else if(it.kind==='calib'){ S.screen='CALIB'; }
+      else if(it.kind==='orient'){ S.orientWork=store.orientation; S.screen='ORIENT'; }
+      else if(it.kind==='dist'){ S.distanceCm=store.distanceCm; S.screen='DIST'; }
+      else if(it.kind==='save'){ saveAllSettings(); S.savedFlash=true; }
+      else if(it.kind==='update'){ S.updateStatus=''; S.screen='UPDATE'; }
+      render();
+    }
+    else if(key==='back'){ S.screen='HOME'; render(); }
+    return;
+  }
+  if(S.screen==='UPDATE'){
+    if(key==='ok'){
+      if(window.Android && window.Android.checkUpdate){
+        S.updateStatus='Verificando atualizações…'; render();
+        try { window.Android.checkUpdate(); } catch(e){ window.__updateStatus('erro'); }
+      }
+    }
+    else if(key==='back'){ S.screen='SETTINGS'; render(); }
+    return;
+  }
+  if(S.screen==='AUTOCAL'){
+    if(key==='left'){ S.inches=Math.max(5,+(S.inches-0.5).toFixed(1)); render(); }
+    else if(key==='right'){ S.inches=Math.min(120,+(S.inches+0.5).toFixed(1)); render(); }
+    else if(key==='down'){ S.inches=Math.max(5,+(S.inches-1).toFixed(1)); render(); }
+    else if(key==='up'){ S.inches=Math.min(120,+(S.inches+1).toFixed(1)); render(); }
+    else if(key==='ok'){
+      const px=autoPxPerMm(S.inches);
+      store.inches=S.inches;
+      if(px>0){ store.pxPerMm=px; }
+      S.screen='SETTINGS'; render();
+    }
+    else if(key==='back'){ S.screen='SETTINGS'; render(); }
+    return;
+  }
+  if(S.screen==='ORIENT'){
+    if(key==='left'||key==='right'||key==='up'||key==='down'){
+      S.orientWork = S.orientWork==='port' ? 'land' : 'port'; render();
+    }
+    else if(key==='ok'){ store.orientation=S.orientWork; S.screen='SETTINGS'; render(); }
+    else if(key==='back'){ S.screen='SETTINGS'; render(); }
+    return;
+  }
+  if(S.screen==='CALIB'){
+    if(key==='left'){ S.calibLengthPx=Math.max(20,S.calibLengthPx-2); render(); }
+    else if(key==='right'){ S.calibLengthPx+=2; render(); }
+    else if(key==='up'){ S.refIndex=(S.refIndex-1+REF_OBJECTS.length)%REF_OBJECTS.length; render(); }
+    else if(key==='down'){ S.refIndex=(S.refIndex+1)%REF_OBJECTS.length; render(); }
+    else if(key==='ok'){ store.pxPerMm=S.calibLengthPx/REF_OBJECTS[S.refIndex].mm; S.screen='SETTINGS'; render(); }
+    else if(key==='back'){ S.screen='SETTINGS'; render(); }
+    return;
+  }
+  if(S.screen==='DIST'){
+    if(key==='left'){ S.distanceCm=Math.max(30,S.distanceCm-5); render(); }
+    else if(key==='right'){ S.distanceCm=Math.min(1200,S.distanceCm+5); render(); }
+    else if(key==='down'){ S.distanceCm=Math.max(30,S.distanceCm-50); render(); }
+    else if(key==='up'){ S.distanceCm=Math.min(1200,S.distanceCm+50); render(); }
+    else if(key==='ok'){ store.distanceCm=S.distanceCm; S.screen='SETTINGS'; render(); }
+    else if(key==='back'){ S.screen='SETTINGS'; render(); }
+    return;
+  }
+  if(S.screen==='TEST'){
+    if(key==='up'){ if(S.test.scale) S.acuityIndex=Math.max(0,S.acuityIndex-1); render(); }
+    else if(key==='down'){ if(S.test.scale) S.acuityIndex=Math.min(AcuityLogMar.length-1,S.acuityIndex+1); render(); }
+    else if(key==='left'){ if(S.test.id==='CONTRAST') S.contrast=Math.max(0.02,S.contrast-0.04); else S.seed--; render(); }
+    else if(key==='right'){ if(S.test.id==='CONTRAST') S.contrast=Math.min(1.0,S.contrast+0.04); else S.seed++; render(); }
+    else if(key==='ok'){ S.single=!S.single; render(); }
+    else if(key==='menu'){ S.showHud=!S.showHud; render(); }
+    else if(key==='back'){ S.screen='HOME'; render(); }
+    return;
+  }
+}
+
+window.addEventListener('keydown', e=>{
+  let k=null;
+  switch(e.key){
+    case 'ArrowUp': k='up'; break;
+    case 'ArrowDown': k='down'; break;
+    case 'ArrowLeft': k='left'; break;
+    case 'ArrowRight': k='right'; break;
+    case 'Enter': case ' ': k='ok'; break;
+    case 'Escape': case 'Backspace': k='back'; break;
+    case 'm': case 'M': k='menu'; break;
+  }
+  if(k){ e.preventDefault(); handle(k); }
+});
+
+// Ponte para o app Android (Fire TV): a Activity encaminha as teclas do controle
+// remoto chamando window.__remote('up'|'down'|'left'|'right'|'ok'|'back'|'menu').
+window.__remote = function(key){ handle(key); };
+
+// =====================================================================================
+// INÍCIO
+// =====================================================================================
+applyOrientation();
+resizeCanvas();
+render();
+</script>
+</body>
+</html>

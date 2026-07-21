@@ -1,0 +1,34 @@
+VERSÃO WEB — TESTE NO COMPUTADOR
+=================================
+
+Esta é uma versão para testar TODA a lógica do app no navegador do PC, antes de gerar o
+APK do Fire TV. Mesma matemática de ângulo visual e os mesmos 10 testes.
+
+COMO ABRIR
+----------
+1. Dê dois cliques em  index.html  (abre no navegador padrão).
+   - Recomendado: Google Chrome ou Microsoft Edge.
+2. Pressione  F11  para tela cheia (importante: o tamanho da tela precisa ser previsível).
+
+O TECLADO SIMULA O CONTROLE REMOTO
+----------------------------------
+  Setas ← ↑ ↓ →      = D-pad do controle
+  Enter ou Espaço    = OK / Select
+  Esc ou Backspace   = Voltar
+  tecla M            = botão Menu (mostra/oculta o painel do examinador)
+
+PRIMEIRO USO
+------------
+1. Abra "Calibrar tela": encoste um cartão (85,6 mm) no monitor sobre a barra preta e ajuste
+   com ← → até coincidir. Enter salva. (Para trocar o objeto: ↑ ↓.)
+2. Abra "Distância do paciente" e ajuste a distância real até o monitor. Enter salva.
+3. Escolha um teste. Durante o teste:
+     ↑ ↓  = optótipo maior / menor (muda a linha de acuidade)
+     ← →  = embaralhar letras / girar E e Landolt / trocar nº (Ishihara) / contraste
+     Enter = 1 optótipo <-> fila (no Ishihara: revelar/ocultar o número)
+     M     = painel do examinador (Snellen, decimal, logMAR)
+
+OBSERVAÇÃO
+----------
+A calibração feita aqui vale para ESTE monitor. No Fire TV, a calibração é refeita na TV.
+As letras usam a fonte do sistema; o tamanho já é clinicamente correto.
