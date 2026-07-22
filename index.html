@@ -36,6 +36,11 @@
   #root.port .subtitle { font-size:2.2vh; margin-bottom:1.2vh; }
   #root.port .status { font-size:2.2vh; }
   #root.port .logo-badge { height:11vh; }
+  /* Tela inicial no vertical: só 2 blocos, então ícones bem grandes p/ preencher a tela. */
+  #root.port .grid.home2 { max-width:none; gap:3.5vh; margin-top:2vh; }
+  #root.port .grid.home2 .tile { padding:7vh 2vh; gap:2.5vh; }
+  #root.port .grid.home2 .tile-ic svg { width:26vh; height:26vh; }
+  #root.port .grid.home2 .tile-lb { font-size:5vh; }
   .logo-badge { height:15vh; max-height:120px; border-radius:14px; background:#FBF6F0;
     padding:8px 16px; box-shadow:0 6px 22px #0007; }
   .title { font-size:clamp(22px,2.6vw,32px); font-weight:700; color:#fff; margin:14px 0 2px; letter-spacing:.4px; }
@@ -58,10 +63,10 @@
   .tile-sub { font-size:12px; color:#a9bccf; text-align:center; }
   .tile.sel .tile-sub { color:#33290f; }
 
-  .grid.home2 { grid-template-columns:repeat(2,1fr); max-width:780px; gap:34px; margin-top:26px; }
-  .grid.home2 .tile { padding:46px 16px; gap:16px; }
-  .grid.home2 .tile-ic svg { width:clamp(58px,11vw,104px); height:clamp(58px,11vw,104px); }
-  .grid.home2 .tile-lb { font-size:clamp(20px,2.6vw,30px); }
+  .grid.home2 { grid-template-columns:repeat(2,1fr); max-width:1060px; gap:44px; margin-top:34px; }
+  .grid.home2 .tile { padding:78px 20px; gap:26px; }
+  .grid.home2 .tile-ic svg { width:clamp(96px,18vw,200px); height:clamp(96px,18vw,200px); }
+  .grid.home2 .tile-lb { font-size:clamp(28px,3.4vw,44px); }
 
   /* ---- telas de configuração ---- */
   .sheet { position:absolute; inset:0; color:var(--cream);
@@ -103,7 +108,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 17;
+const WEB_VERSION = 18;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -449,23 +454,27 @@ function drawLeaRow(syms, cy, size){
 
 function drawDial(){
   // Leque astigmático semicircular (relógio 0–12) com o grau de cada meridiano em cada linha.
-  const R = Math.min(W*0.40, H*0.42);
-  const cx = W/2, cy = H*0.58;               // cubo um pouco abaixo do centro; leque abre p/ cima
-  const st = Math.max(3, R*0.022), hub = R*0.10;
+  // Números e graus ficam num anel FORA das linhas (não sobrepõem os traços).
+  const R = Math.min(W*0.37, H*0.42);
+  const cx = W/2, cy = H*0.60;               // cubo um pouco abaixo do centro; leque abre p/ cima
+  const st = Math.max(3, R*0.022), hub = R*0.10, lineEnd = R*0.85;
   ctx.strokeStyle='#000'; ctx.fillStyle='#000'; ctx.lineWidth=st; ctx.lineCap='butt';
   // cubo (semicírculo cheio na base)
   ctx.beginPath(); ctx.arc(cx, cy, hub, Math.PI, 2*Math.PI); ctx.fill();
-  const numF = Math.max(15, R*0.12), degF = Math.max(9, R*0.058);
+  const numF = Math.max(15, R*0.12), degF = Math.max(9, R*0.06);
   ctx.textAlign='center'; ctx.textBaseline='middle';
   for(let n=0; n<=12; n++){
     const th = (180 - 15*n) * Math.PI/180;   // 0 à esquerda (180°) … 6 no topo … 12 à direita (0°)
     const dx = Math.cos(th), dy = -Math.sin(th);
-    ctx.beginPath(); ctx.moveTo(cx+dx*hub, cy+dy*hub); ctx.lineTo(cx+dx*R, cy+dy*R); ctx.stroke();
+    // linha (termina antes do anel de rótulos)
+    ctx.beginPath(); ctx.moveTo(cx+dx*hub, cy+dy*hub); ctx.lineTo(cx+dx*lineEnd, cy+dy*lineEnd); ctx.stroke();
     const deg = (90 + 15*n) % 180;
-    ctx.font = `bold ${numF}px Arial`;
-    ctx.fillText(String(n), cx+dx*(R+R*0.14), cy+dy*(R+R*0.14));
+    // grau: anel interno (logo após o fim da linha) — não toca o traço
     ctx.font = `${degF}px Arial`;
-    ctx.fillText(deg+'°', cx+dx*(R+R*0.03), cy+dy*(R+R*0.03) + R*0.085);
+    ctx.fillText(deg+'°', cx+dx*(R*0.97), cy+dy*(R*0.97));
+    // número: anel externo (na ponta)
+    ctx.font = `bold ${numF}px Arial`;
+    ctx.fillText(String(n), cx+dx*(R*1.15), cy+dy*(R*1.15));
   }
 }
 function drawDuochrome(letters, heightPx){

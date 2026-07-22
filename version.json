@@ -1,4 +1,4 @@
 {
-  "version": 17,
-  "notes": "Dial astigmático no modelo leque semicircular (relógio 0–12) com o grau de cada meridiano em cada linha."
+  "version": 18,
+  "notes": "Dial: graus fora das linhas (sem sobreposição). Tela inicial com blocos Exames/Configurações bem maiores."
 }
