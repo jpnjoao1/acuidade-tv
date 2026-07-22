@@ -1,4 +1,4 @@
 {
-  "version": 15,
-  "notes": "Calibração por objeto: ao reabrir, a barra restaura o valor já calibrado e mostra a calibração salva atual (antes só a barra voltava ao padrão, parecendo não salvo)."
+  "version": 16,
+  "notes": "Pelli-Robson sem sobreposição (tamanho adaptativo, passo 0,15 log padrão) e rolagem do vertical sem 'pulo' (transição removida)."
 }

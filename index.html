@@ -24,7 +24,7 @@
   .wrap { min-height:100%; display:flex; flex-direction:column; align-items:center; padding:4vh 5vw 8vh; }
   /* Vertical: rolagem MANUAL (deslocamento por transform), confiável dentro do conteúdo girado. */
   #root.port .screen { overflow:hidden; }
-  #root.port .wrap { min-height:0; justify-content:flex-start; padding:2vh 3vh 9vh; transition:transform .12s ease; }
+  #root.port .wrap { min-height:0; justify-content:flex-start; padding:2vh 3vh 9vh; }
   #root.port .backhint { position:absolute; }
   /* Tiles no vertical (dimensionados por vh, pois a largura útil = 100vh). Ícones grandes;
      quando não cabem, a tela rola (o item selecionado é trazido para a vista ao navegar). */
@@ -103,7 +103,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 15;
+const WEB_VERSION = 16;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -575,23 +575,31 @@ function drawStereo(seed, reveal){
 }
 // ---- PELLI-ROBSON (sensibilidade ao contraste; fundo branco) ----
 function drawPelli(seed){
-  const cols=3, rows=4, mL=W*0.10, mT=H*0.14, gw=(W-2*mL), gh=(H-2*mT-40);
-  const cw=gw/cols, ch=gh/rows, letterH=Math.min(cw,ch)*0.42;
-  const rnd=mulberry32(seed*17+3);
+  const cols=2, rows=6;                    // 12 trios (2 colunas x 6 linhas)
+  const mL=W*0.05, mT=H*0.09, gw=W-2*mL, gh=H-2*mT-34;
+  const cw=gw/cols, ch=gh/rows;
+  const gapFactor=0.4;                      // espaço entre letras do trio (fração do avanço)
+  // calcula o tamanho da letra p/ o trio (3 letras + 2 espaços) caber na coluna com folga
+  setFontForCapHeight(100);
+  const advAt100 = ctx.measureText('H').width;   // avanço de referência p/ escala
+  const tripUnits = 3 + 2*gapFactor;             // largura do trio em "avanços"
+  const advTarget = (cw*0.82) / tripUnits;       // avanço desejado p/ caber na coluna
+  const letterH = Math.min(ch*0.5, 100*advTarget/advAt100);
+  setFontForCapHeight(letterH);
+  const adv = ctx.measureText('H').width, gap = adv*gapFactor, stepX = adv+gap;
   ctx.textAlign='center'; ctx.textBaseline='middle';
+  const rnd = mulberry32(seed*17+3);
   let tri=0;
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
-    const contrast=Math.max(0.008, Math.pow(10, -0.18*tri)); // passos de 0,18 log
-    const g=Math.round(255*(1-contrast));
-    const cxT=mL+c*cw+cw/2, cyT=mT+r*ch+ch/2;
-    setFontForCapHeight(letterH); ctx.fillStyle=`rgb(${g},${g},${g})`;
-    const adv=ctx.measureText('E').width, gap=adv*0.35;
-    const start=cxT-(adv+gap);
-    for(let k=0;k<3;k++){ ctx.fillText(SLOAN[(rnd()*SLOAN.length)|0], start+k*(adv+gap), cyT); }
+    const contrast = Math.max(0.006, Math.pow(10, -0.15*tri)); // passo 0,15 log (padrão Pelli-Robson)
+    const g = Math.round(255*(1-contrast));
+    const cxT = mL + c*cw + cw/2, cyT = mT + r*ch + ch/2;
+    ctx.fillStyle = `rgb(${g},${g},${g})`;
+    for(let k=0;k<3;k++) ctx.fillText(SLOAN[(rnd()*SLOAN.length)|0], cxT+(k-1)*stepX, cyT);
     tri++;
   }
   ctx.fillStyle='#0E2036'; ctx.font='14px Arial';
-  ctx.fillText('Contraste diminui da esquerda p/ direita e de cima p/ baixo', W/2, H-22);
+  ctx.fillText('Contraste diminui a cada trio (→ e ↓)', W/2, H-14);
 }
 // ---- GRADE DE AMSLER (triagem macular; fundo branco) ----
 function drawAmsler(){
