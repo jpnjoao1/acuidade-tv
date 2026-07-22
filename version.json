@@ -1,4 +1,4 @@
 {
-  "version": 16,
-  "notes": "Pelli-Robson sem sobreposição (tamanho adaptativo, passo 0,15 log padrão) e rolagem do vertical sem 'pulo' (transição removida)."
+  "version": 17,
+  "notes": "Dial astigmático no modelo leque semicircular (relógio 0–12) com o grau de cada meridiano em cada linha."
 }
