@@ -1,4 +1,4 @@
 {
-  "version": 13,
-  "notes": "Ícones grandes no modo vertical (com rolagem quando não cabem) e remoção do diagnóstico."
+  "version": 14,
+  "notes": "Modo vertical: ícones grandes com rolagem MANUAL confiável (mantém o item selecionado sempre visível ao navegar, mesmo com o conteúdo girado)."
 }

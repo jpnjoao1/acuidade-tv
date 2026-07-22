@@ -22,9 +22,9 @@
   .screen { position:absolute; inset:0; overflow:auto; color:var(--cream);
     background:radial-gradient(120% 95% at 50% -5%, #1b3a5b 0%, #0E2036 60%); }
   .wrap { min-height:100%; display:flex; flex-direction:column; align-items:center; padding:4vh 5vw 8vh; }
-  /* Vertical: centraliza quando cabe e rola quando não cabe (robusto em qualquer WebView). */
-  #root.port .screen { display:flex; flex-direction:column; }
-  #root.port .wrap { min-height:0; margin-top:auto; margin-bottom:auto; padding:2vh 3vh 2vh; }
+  /* Vertical: rolagem MANUAL (deslocamento por transform), confiável dentro do conteúdo girado. */
+  #root.port .screen { overflow:hidden; }
+  #root.port .wrap { min-height:0; justify-content:flex-start; padding:2vh 3vh 9vh; transition:transform .12s ease; }
   #root.port .backhint { position:absolute; }
   /* Tiles no vertical (dimensionados por vh, pois a largura útil = 100vh). Ícones grandes;
      quando não cabem, a tela rola (o item selecionado é trazido para a vista ao navegar). */
@@ -103,7 +103,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 13;
+const WEB_VERSION = 14;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -734,7 +734,26 @@ function tileGrid(items, index, cols, extraClass=''){
     </div>`).join('');
   return `<div class="grid ${extraClass}" style="grid-template-columns:repeat(${cols},1fr)">${tiles}</div>`;
 }
+let portOffset = 0;
+// Rolagem MANUAL do vertical: desloca o .wrap por transform para manter o item selecionado
+// visível. Funciona mesmo dentro do #root girado (a rolagem nativa não funciona ali na Fire TV).
+function portraitScroll(){
+  const wrap = ui.querySelector('.wrap'), scr = ui.querySelector('.screen');
+  if(!wrap || !scr){ portOffset=0; return; }
+  const sel = ui.querySelector('.tile.sel');
+  const viewH = scr.clientHeight;            // altura útil (espaço do conteúdo, ex.: 960)
+  const contentH = wrap.scrollHeight;         // altura total do conteúdo
+  if(!sel || contentH <= viewH){ wrap.style.transform=''; portOffset=0; return; }
+  const pad = 24, selTop = sel.offsetTop, selBot = selTop + sel.offsetHeight;
+  let off = portOffset;
+  if(selTop < off + pad) off = selTop - pad;
+  else if(selBot > off + viewH - pad) off = selBot - viewH + pad;
+  off = Math.max(0, Math.min(off, contentH - viewH));
+  portOffset = off;
+  wrap.style.transform = 'translateY(' + (-off) + 'px)';
+}
 function scrollSel(){
+  if(root.classList.contains('port')){ portraitScroll(); return; }
   const s = ui.querySelector('.tile.sel');
   if(s){ try { s.scrollIntoView({block:'nearest', inline:'nearest'}); } catch(e){ try{ s.scrollIntoView(false); }catch(_){} } }
 }
