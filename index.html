@@ -103,7 +103,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 14;
+const WEB_VERSION = 15;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -906,6 +906,7 @@ function renderCalib(){
       <p>Largura real: ${ref.mm} mm</p>
       <p style="margin-top:12px">Encoste o objeto na tela sobre a barra clara e ajuste até coincidir exatamente.</p>
       <p class="big" style="margin-top:10px">Resultado: ${pxPerMm.toFixed(2)} pixels/mm</p>
+      ${store.calibrated ? `<p style="color:#8FE0A0;font-size:16px">✓ Calibração salva atual: ${store.pxPerMm.toFixed(2)} px/mm</p>` : ''}
     </div>
     <div class="calibar" style="width:${S.calibLengthPx}px"></div>
     <div class="hint">◀ ▶ ajustar &nbsp;•&nbsp; ▲▼ trocar objeto &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
@@ -1003,7 +1004,7 @@ function handle(key){
     if(key==='ok'){
       const it=sitems[S.settingsIndex];
       if(it.kind==='autocal'){ S.inches=store.inches; S.screen='AUTOCAL'; }
-      else if(it.kind==='calib'){ S.screen='CALIB'; }
+      else if(it.kind==='calib'){ if(store.calibrated) S.calibLengthPx=Math.max(20, Math.round(store.pxPerMm*REF_OBJECTS[S.refIndex].mm)); S.screen='CALIB'; }
       else if(it.kind==='orient'){ S.orientWork=store.orientation; S.screen='ORIENT'; }
       else if(it.kind==='mirror'){ S.mirrorWork=store.mirror; S.screen='MIRROR'; }
       else if(it.kind==='dist'){ S.distanceCm=store.distanceCm; S.screen='DIST'; }
