@@ -1,4 +1,4 @@
 {
-  "version": 20,
-  "notes": "Calibração por objeto: agora só em centímetros (régua/trena, comprimento ajustável) e gravação reforçada em 3 canais (localStorage + cookie + memória) para não perder o valor ao reabrir o app."
+  "version": 21,
+  "notes": "Snellen: linha logMAR -0,1 rotulada como 20/15 (antes 20/16)."
 }
