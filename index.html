@@ -108,7 +108,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 19;
+const WEB_VERSION = 20;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -164,12 +164,8 @@ function pool(id){
        : id==='HOTV'?HOTV : id==='LEANUM'?LEANUM : SLOAN;
 }
 
-const REF_OBJECTS = [
-  { name:'Cartão (crédito / RG)', mm:85.6 },
-  { name:'Régua — marca de 10 cm', mm:100 },
-  { name:'Régua — marca de 5 cm', mm:50 },
-  { name:'Cédula R$ (comprimento 14 cm)', mm:140 },
-];
+// Calibração por objeto: uma única referência em CENTÍMETROS (régua/trena na tela).
+const REF_CM_MIN = 1, REF_CM_MAX = 60, REF_CM_DEFAULT = 10;
 
 // =====================================================================================
 // ÍCONES (SVG inline, coloridos por currentColor)
@@ -211,17 +207,27 @@ const ICONS = {
 // =====================================================================================
 // ESTADO
 // =====================================================================================
-// Armazenamento robusto: em alguns WebViews (Fire TV) o localStorage pode falhar ou
-// vir desabilitado — aí a calibração "não salvava". Cache em memória garante o valor
-// na sessão e o try/catch impede que um erro de gravação interrompa o fluxo de salvar.
+// Armazenamento robusto: em alguns WebViews (Fire TV) o localStorage pode falhar,
+// vir desabilitado ou ser descartado ao fechar o app — aí a calibração "não salvava".
+// Grava em TRÊS canais e lê o primeiro que responder: localStorage, cookie (no WebView
+// do Android os cookies persistem por outro mecanismo, independente do DOM storage)
+// e cache em memória para a sessão atual.
 const _mem = {};
-function lsGet(k){ try{ const v=localStorage.getItem(k); if(v!==null && v!==undefined) return v; }catch(e){} return (k in _mem) ? _mem[k] : null; }
-function lsSet(k,v){ _mem[k]=String(v); try{ localStorage.setItem(k, v); }catch(e){} }
+function ckGet(k){ try{ const m=document.cookie.match(new RegExp('(?:^|; )av_'+k+'=([^;]*)')); return m ? decodeURIComponent(m[1]) : null; }catch(e){ return null; } }
+function ckSet(k,v){ try{ document.cookie='av_'+k+'='+encodeURIComponent(v)+'; max-age=63072000; path=/'; }catch(e){} }
+function lsGet(k){
+  try{ const v=localStorage.getItem(k); if(v!==null && v!==undefined) return v; }catch(e){}
+  const c=ckGet(k); if(c!==null) return c;
+  return (k in _mem) ? _mem[k] : null;
+}
+function lsSet(k,v){ _mem[k]=String(v); try{ localStorage.setItem(k, v); }catch(e){} ckSet(k,v); }
 const store = {
   get pxPerMm(){ return parseFloat(lsGet('pxPerMm')||'0'); },
   set pxPerMm(v){ lsSet('pxPerMm', v); },
   get calibMethod(){ return lsGet('calibMethod')||''; }, // 'objeto' | 'auto'
   set calibMethod(v){ lsSet('calibMethod', v); },
+  get refCm(){ const v=parseFloat(lsGet('refCm')||''); return (v>=REF_CM_MIN && v<=REF_CM_MAX) ? v : REF_CM_DEFAULT; },
+  set refCm(v){ lsSet('refCm', v); },
   get distanceCm(){ return parseFloat(lsGet('distanceCm')||'300'); },
   set distanceCm(v){ lsSet('distanceCm', v); },
   get orientation(){ return lsGet('orientation')||'land'; }, // 'land' | 'port'
@@ -260,7 +266,7 @@ const S = {
   showHud: true,
   contrast: 1.0,
   calibLengthPx: 400,
-  refIndex: 0,
+  refCm: REF_CM_DEFAULT,
   distanceCm: store.distanceCm,
   inches: store.inches,
   orientWork: store.orientation,
@@ -309,6 +315,7 @@ function gridCols(screen){
 function saveAllSettings(){
   store.pxPerMm = store.pxPerMm;
   store.calibMethod = store.calibMethod;
+  store.refCm = store.refCm;
   store.distanceCm = store.distanceCm;
   store.orientation = store.orientation;
   store.inches = store.inches;
@@ -954,20 +961,19 @@ function renderOrient(){
 }
 
 function renderCalib(){
-  const ref = REF_OBJECTS[S.refIndex];
-  const pxPerMm = S.calibLengthPx / ref.mm;
+  const cm = S.refCm;
+  const pxPerMm = S.calibLengthPx / (cm*10);
   ui.innerHTML = `<div class="sheet">
     <img class="logo-sm" src="logo.jpg" alt="">
     <div class="info">
       <h2>Calibração da tela</h2>
-      <p><b>Objeto de referência:</b> ${ref.name}</p>
-      <p>Largura real: ${ref.mm} mm</p>
-      <p style="margin-top:12px">Encoste o objeto na tela sobre a barra clara e ajuste até coincidir exatamente.</p>
+      <p><b>Comprimento de referência:</b> <span class="big" style="font-size:34px">${cm.toFixed(0)} cm</span></p>
+      <p style="margin-top:12px">Encoste uma régua (ou trena) na tela e ajuste a barra clara com ◀ ▶ até ela medir exatamente <b>${cm.toFixed(0)} cm</b>.</p>
       <p class="big" style="margin-top:10px">Resultado: ${pxPerMm.toFixed(2)} pixels/mm</p>
       ${store.calibrated ? `<p style="color:#8FE0A0;font-size:16px">✓ Calibração salva atual: ${store.pxPerMm.toFixed(2)} px/mm</p>` : ''}
     </div>
     <div class="calibar" style="width:${S.calibLengthPx}px"></div>
-    <div class="hint">◀ ▶ ajustar &nbsp;•&nbsp; ▲▼ trocar objeto &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
+    <div class="hint">◀ ▶ ajustar a barra &nbsp;•&nbsp; ▲▼ centímetros (±1 cm) &nbsp;•&nbsp; Enter salvar &nbsp;•&nbsp; Esc cancelar</div>
   </div>`;
 }
 
@@ -1067,7 +1073,7 @@ function handle(key){
     if(key==='ok'){
       const it=sitems[S.settingsIndex];
       if(it.kind==='autocal'){ S.inches=store.inches; S.screen='AUTOCAL'; }
-      else if(it.kind==='calib'){ if(store.calibrated) S.calibLengthPx=Math.max(20, Math.round(store.pxPerMm*REF_OBJECTS[S.refIndex].mm)); S.screen='CALIB'; }
+      else if(it.kind==='calib'){ S.refCm=store.refCm; if(store.calibrated) S.calibLengthPx=Math.max(20, Math.round(store.pxPerMm*S.refCm*10)); S.screen='CALIB'; }
       else if(it.kind==='orient'){ S.orientWork=store.orientation; S.screen='ORIENT'; }
       else if(it.kind==='mirror'){ S.mirrorWork=store.mirror; S.screen='MIRROR'; }
       else if(it.kind==='dist'){ S.distanceCm=store.distanceCm; S.screen='DIST'; }
@@ -1119,9 +1125,9 @@ function handle(key){
   if(S.screen==='CALIB'){
     if(key==='left'){ S.calibLengthPx=Math.max(20,S.calibLengthPx-2); render(); }
     else if(key==='right'){ S.calibLengthPx+=2; render(); }
-    else if(key==='up'){ S.refIndex=(S.refIndex-1+REF_OBJECTS.length)%REF_OBJECTS.length; render(); }
-    else if(key==='down'){ S.refIndex=(S.refIndex+1)%REF_OBJECTS.length; render(); }
-    else if(key==='ok'){ store.pxPerMm=S.calibLengthPx/REF_OBJECTS[S.refIndex].mm; store.calibMethod='objeto'; S.savedFlash=true; S.screen='SETTINGS'; render(); }
+    else if(key==='up'){ S.refCm=Math.min(REF_CM_MAX,S.refCm+1); render(); }
+    else if(key==='down'){ S.refCm=Math.max(REF_CM_MIN,S.refCm-1); render(); }
+    else if(key==='ok'){ store.pxPerMm=S.calibLengthPx/(S.refCm*10); store.refCm=S.refCm; store.calibMethod='objeto'; S.savedFlash=true; S.screen='SETTINGS'; render(); }
     else if(key==='back'){ S.screen='SETTINGS'; render(); }
     return;
   }

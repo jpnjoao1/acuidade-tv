@@ -1,4 +1,4 @@
 {
-  "version": 19,
-  "notes": "Snellen: escala até 20/800, linhas nunca cortam (contagem adaptativa), mais espaço nas linhas pequenas, sem letras repetidas, rótulo 20/125 padrão. Calibração por objeto mais robusta (indica o método salvo)."
+  "version": 20,
+  "notes": "Calibração por objeto: agora só em centímetros (régua/trena, comprimento ajustável) e gravação reforçada em 3 canais (localStorage + cookie + memória) para não perder o valor ao reabrir o app."
 }

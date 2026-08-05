@@ -19,8 +19,9 @@ O TECLADO SIMULA O CONTROLE REMOTO
 
 PRIMEIRO USO
 ------------
-1. Abra "Calibrar tela": encoste um cartão (85,6 mm) no monitor sobre a barra preta e ajuste
-   com ← → até coincidir. Enter salva. (Para trocar o objeto: ↑ ↓.)
+1. Abra "Calibração por objeto": encoste uma régua (ou trena) no monitor sobre a barra clara
+   e ajuste com ← → até a barra medir exatamente os centímetros mostrados (padrão: 10 cm).
+   Para mudar o comprimento de referência: ↑ ↓ (±1 cm). Enter salva.
 2. Abra "Distância do paciente" e ajuste a distância real até o monitor. Enter salva.
 3. Escolha um teste. Durante o teste:
      ↑ ↓  = optótipo maior / menor (muda a linha de acuidade)
