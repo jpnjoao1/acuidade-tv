@@ -1,4 +1,4 @@
 {
-  "version": 18,
-  "notes": "Dial: graus fora das linhas (sem sobreposição). Tela inicial com blocos Exames/Configurações bem maiores."
+  "version": 19,
+  "notes": "Snellen: escala até 20/800, linhas nunca cortam (contagem adaptativa), mais espaço nas linhas pequenas, sem letras repetidas, rótulo 20/125 padrão. Calibração por objeto mais robusta (indica o método salvo)."
 }
