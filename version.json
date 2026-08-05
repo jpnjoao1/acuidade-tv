@@ -1,4 +1,4 @@
 {
-  "version": 19,
-  "notes": "Painel do examinador (canto superior esquerdo) com letras bem maiores: referências 20/x, 6/x, decimal e logMAR legíveis de longe."
+  "version": 20,
+  "notes": "Painel do examinador: amplia por 4 s ao entrar/navegar no exame (legível de longe) e volta sozinho ao tamanho pequeno para não atrapalhar."
 }

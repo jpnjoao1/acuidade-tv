@@ -88,13 +88,20 @@
   .hint { position:absolute; bottom:24px; left:0; right:0; text-align:center; color:#8ea6c0; font-size:15px; }
 
   /* ---- HUD do teste ---- */
-  #hud { position:absolute; top:1.5vh; left:1vw; background:#0E2036e6; color:#fff;
-    padding:1.8vh 1.6vw; border-radius:14px; display:none; border:1px solid #C6A24C55;
+  #hud { position:absolute; top:10px; left:10px; background:#0E2036e6; color:#fff;
+    padding:10px 14px; border-radius:8px; display:none; border:1px solid #C6A24C55;
     max-width:48vw; }
-  #hud .h1 { font-size:3vh; font-weight:700; color:var(--gold2); }
-  #hud .h2 { font-size:4.6vh; font-weight:800; color:#9BD0FF; line-height:1.25; }
-  #hud .h3 { font-size:2.6vh; color:#ccc; margin-top:.5vh; }
-  #hud .h4 { font-size:1.9vh; color:#ffffff99; margin-top:.6vh; }
+  #hud .h1 { font-size:16px; font-weight:700; color:var(--gold2); transition:font-size .25s; }
+  #hud .h2 { font-size:14px; font-weight:800; color:#9BD0FF; line-height:1.25; transition:font-size .25s; }
+  #hud .h3 { font-size:13px; color:#bbb; transition:font-size .25s; }
+  #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; transition:font-size .25s; }
+  /* Ao navegar no exame, o painel fica grande por alguns segundos (leitura a distância)
+     e depois volta sozinho ao tamanho pequeno para não atrapalhar o exame. */
+  #hud.big { padding:1.8vh 1.6vw; border-radius:14px; }
+  #hud.big .h1 { font-size:3vh; }
+  #hud.big .h2 { font-size:4.6vh; }
+  #hud.big .h3 { font-size:2.6vh; }
+  #hud.big .h4 { font-size:1.9vh; }
   #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
     color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
 </style>
@@ -939,6 +946,12 @@ function renderDist(){
   </div>`;
 }
 
+let hudBigTimer=null;
+function hudFlash(){ // amplia o painel por alguns segundos e volta ao tamanho normal
+  hud.classList.add('big');
+  clearTimeout(hudBigTimer);
+  hudBigTimer=setTimeout(()=>hud.classList.remove('big'), 4000);
+}
 function renderHud(){
   if(S.test.id==='BLANK'){ hud.style.display='none'; warn.style.display='none'; return; } // 100% branca
   if(store.calibrated===false && S.test.scale){
@@ -987,6 +1000,7 @@ function openTest(t){
   S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
   S.letterMode='row'; S.pointerIdx=0;
   S.screen='TEST';
+  hudFlash();
 }
 const LETTER_CHARTS = ['SNELLEN','LOGMAR','NUMBERS','HOTV','LEANUM'];
 function handle(key){
@@ -1086,6 +1100,7 @@ function handle(key){
   }
   if(S.screen==='TEST'){
     const id=S.test.id, isLetter=LETTER_CHARTS.includes(id);
+    if(key==='up'||key==='down'||key==='left'||key==='right'||key==='ok') hudFlash();
     if(key==='up'){ if(S.test.scale) S.acuityIndex=Math.max(0,S.acuityIndex-1); render(); }
     else if(key==='down'){ if(S.test.scale) S.acuityIndex=Math.min(AcuityLogMar.length-1,S.acuityIndex+1); render(); }
     else if(key==='left'){
