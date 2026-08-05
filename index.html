@@ -108,15 +108,18 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 18;
+const WEB_VERSION = 19;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
 // =====================================================================================
-const AcuityLogMar = [1.0,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.0,-0.1,-0.2,-0.3];
-const DEFAULT_ACUITY_INDEX = 3;
+// Escala completa: 20/800, 20/600, 20/400, depois 20/200 … 20/10 (passos de 0,1 logMAR).
+const AcuityLogMar = [1.60206,1.47712,1.30103,1.0,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.0,-0.1,-0.2,-0.3];
+const DEFAULT_ACUITY_INDEX = 6;
 
-const snellenFeet   = lm => Math.round(20 * Math.pow(10, lm));
+// Denominadores padrão de carta (o cálculo puro daria 20/126 no logMAR 0,8; o padrão é 20/125).
+const SNELLEN_FT = {160:800,148:600,130:400,100:200,90:160,80:125,70:100,60:80,50:63,40:50,30:40,20:32,10:25,0:20,'-10':16,'-20':13,'-30':10};
+const snellenFeet   = lm => { const k=Math.round(lm*100); return SNELLEN_FT[k]!==undefined ? SNELLEN_FT[k] : Math.round(20 * Math.pow(10, lm)); };
 const snellenMeters = lm => Math.round(6  * Math.pow(10, lm));
 const decimalAc     = lm => Math.pow(10, -lm);
 function optotypeHeightMm(lm, distMm){
@@ -208,17 +211,25 @@ const ICONS = {
 // =====================================================================================
 // ESTADO
 // =====================================================================================
+// Armazenamento robusto: em alguns WebViews (Fire TV) o localStorage pode falhar ou
+// vir desabilitado — aí a calibração "não salvava". Cache em memória garante o valor
+// na sessão e o try/catch impede que um erro de gravação interrompa o fluxo de salvar.
+const _mem = {};
+function lsGet(k){ try{ const v=localStorage.getItem(k); if(v!==null && v!==undefined) return v; }catch(e){} return (k in _mem) ? _mem[k] : null; }
+function lsSet(k,v){ _mem[k]=String(v); try{ localStorage.setItem(k, v); }catch(e){} }
 const store = {
-  get pxPerMm(){ return parseFloat(localStorage.getItem('pxPerMm')||'0'); },
-  set pxPerMm(v){ localStorage.setItem('pxPerMm', v); },
-  get distanceCm(){ return parseFloat(localStorage.getItem('distanceCm')||'300'); },
-  set distanceCm(v){ localStorage.setItem('distanceCm', v); },
-  get orientation(){ return localStorage.getItem('orientation')||'land'; }, // 'land' | 'port'
-  set orientation(v){ localStorage.setItem('orientation', v); },
-  get inches(){ return parseFloat(localStorage.getItem('inches')||'32'); },
-  set inches(v){ localStorage.setItem('inches', v); },
-  get mirror(){ return localStorage.getItem('mirror')==='1'; }, // modo espelho
-  set mirror(v){ localStorage.setItem('mirror', v?'1':'0'); },
+  get pxPerMm(){ return parseFloat(lsGet('pxPerMm')||'0'); },
+  set pxPerMm(v){ lsSet('pxPerMm', v); },
+  get calibMethod(){ return lsGet('calibMethod')||''; }, // 'objeto' | 'auto'
+  set calibMethod(v){ lsSet('calibMethod', v); },
+  get distanceCm(){ return parseFloat(lsGet('distanceCm')||'300'); },
+  set distanceCm(v){ lsSet('distanceCm', v); },
+  get orientation(){ return lsGet('orientation')||'land'; }, // 'land' | 'port'
+  set orientation(v){ lsSet('orientation', v); },
+  get inches(){ return parseFloat(lsGet('inches')||'32'); },
+  set inches(v){ lsSet('inches', v); },
+  get mirror(){ return lsGet('mirror')==='1'; }, // modo espelho
+  set mirror(v){ lsSet('mirror', v?'1':'0'); },
   get calibrated(){ return this.pxPerMm > 0; },
   get distanceMm(){ return this.distanceCm * 10; },
 };
@@ -259,6 +270,8 @@ const S = {
   updateStatus: '',
   letterMode: 'row',   // 'row' | 'single' (crowded) | 'pointer'
   pointerIdx: 0,
+  rowCount: 5,         // letras na fila atual (adaptativo ao tamanho)
+  lastHeightPx: 0,
   mirrorWork: false,
 };
 
@@ -295,6 +308,7 @@ function gridCols(screen){
 // (Re)grava as configurações atuais no armazenamento local do app.
 function saveAllSettings(){
   store.pxPerMm = store.pxPerMm;
+  store.calibMethod = store.calibMethod;
   store.distanceCm = store.distanceCm;
   store.orientation = store.orientation;
   store.inches = store.inches;
@@ -313,10 +327,13 @@ function mulberry32(a){
   };
 }
 function pickLetters(id, seed, acuityIndex, count){
-  const p = pool(id);
+  // Embaralha o pool (Fisher-Yates determinístico) e toma as primeiras: nunca repete
+  // letra na mesma linha (count é limitado ao tamanho do pool em rowCountFor).
+  const p = pool(id).slice();
   const rnd = mulberry32(seed*31 + acuityIndex*7 + id.length);
+  for(let i=p.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; const t=p[i]; p[i]=p[j]; p[j]=t; }
   const out = [];
-  for(let i=0;i<count;i++) out.push(p[(rnd()*p.length)|0]);
+  for(let i=0;i<count;i++) out.push(p[i % p.length]);
   return out;
 }
 const orientationFrom = seed => Math.abs(seed) % 4;
@@ -362,18 +379,39 @@ function drawGlyph(text, cx, cy, heightPx, color='#000'){
   ctx.fillStyle = color; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(text, cx, cy);
 }
-function letterRowLayout(count, heightPx){
+// Espaço entre letras (em avanços): linhas pequenas (20/100 e melhores) ganham
+// espaçamento maior, a pedido clínico; linhas grandes usam o padrão (1 letra de vão).
+function gapFactorFor(lm){ return lm <= 0.71 ? 1.7 : 1.0; }
+// Quantas letras a linha comporta SEM cortar (o tamanho da letra é clínico e nunca
+// encolhe): linhas grandes reduzem a contagem (5 → 4 → …); linhas pequenas podem
+// ganhar mais letras, até o limite do pool (sem repetir) — LogMAR/ETDRS fixa em 5.
+function rowCountFor(id, heightPx, lm){
   setFontForCapHeight(heightPx);
-  const advance = ctx.measureText('E').width, gap = advance;
+  const adv = ctx.measureText('E').width, gf = gapFactorFor(lm), maxW = W*0.94;
+  const cap = Math.min(pool(id).length, id==='LOGMAR' ? 5 : 8);
+  let n = Math.min(cap, 5);
+  while(n < cap && (n+1)*adv + n*adv*gf <= maxW) n++;
+  while(n > 1 && n*adv + (n-1)*adv*gf > maxW) n--;
+  return n;
+}
+function letterRowLayout(count, heightPx, gf){
+  setFontForCapHeight(heightPx);
+  const advance = ctx.measureText('E').width, gap = advance*(gf||1);
   const total = count*advance + (count-1)*gap;
   const startX = (W-total)/2 + advance/2;
   return { advance, gap, startX, step: advance+gap };
 }
-function drawGlyphRow(letters, cy, heightPx, color='#000'){
-  const lay = letterRowLayout(letters.length, heightPx);
+function drawGlyphRow(letters, cy, heightPx, gf, color='#000'){
+  const lay = letterRowLayout(letters.length, heightPx, gf);
   ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
   let x = lay.startX;
   for(const l of letters){ ctx.fillText(l, x, cy); x += lay.step; }
+}
+// Reduz a contagem de uma fila de símbolos até caber na largura útil da tela.
+function fitCount(desired, unit, gapPx){
+  let n = desired;
+  while(n > 1 && n*unit + (n-1)*gapPx > W*0.94) n--;
+  return n;
 }
 // Optótipo único com barras de "crowding" (isolamento para ambliopia).
 function drawCrowded(text, cx, cy, h){
@@ -395,10 +433,13 @@ function drawPointer(cx, cy, h){
 function drawGlyphRowInBox(letters, left, width, cy, heightPx){
   setFontForCapHeight(heightPx);
   const adv = ctx.measureText('E').width, gap = adv*0.6;
-  const total = letters.length*adv + (letters.length-1)*gap;
+  let n = letters.length;
+  while(n > 1 && n*adv + (n-1)*gap > width*0.92) n--;   // não corta nas metades do duocromo
+  const use = letters.slice(0, n);
+  const total = n*adv + (n-1)*gap;
   let x = left + (width-total)/2 + adv/2;
   ctx.fillStyle='#000'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  for(const l of letters){ ctx.fillText(l, x, cy); x += adv+gap; }
+  for(const l of use){ ctx.fillText(l, x, cy); x += adv+gap; }
 }
 
 function withRot(cx, cy, orient, fn){
@@ -447,9 +488,10 @@ function drawLea(sym, cx, cy, size, color='#000'){
   }
 }
 function drawLeaRow(syms, cy, size){
-  const gap=size, total=syms.length*size+(syms.length-1)*gap;
+  const use=syms.slice(0, fitCount(syms.length, size, size));
+  const gap=size, total=use.length*size+(use.length-1)*gap;
   let x=(W-total)/2 + size/2;
-  for(const s of syms){ drawLea(s,x,cy,size); x+=size+gap; }
+  for(const s of use){ drawLea(s,x,cy,size); x+=size+gap; }
 }
 
 function drawDial(){
@@ -519,7 +561,7 @@ function drawIshihara(digit, seed, reveal){
 }
 
 function drawDirectionalRow(seed, heightPx, drawFn){
-  const count=4, gap=heightPx, total=count*heightPx+(count-1)*gap;
+  const count=fitCount(4, heightPx, heightPx), gap=heightPx, total=count*heightPx+(count-1)*gap;
   let x=(W-total)/2 + heightPx/2;
   for(let i=0;i<count;i++){ drawFn(x, heightPx, Math.abs(seed+i*13)%4); x+=heightPx+gap; }
 }
@@ -643,9 +685,10 @@ function drawFigure(sym, cx, cy, size){
   }
 }
 function drawFigureRow(syms, cy, size){
-  const gap=size, total=syms.length*size+(syms.length-1)*gap;
+  const use=syms.slice(0, fitCount(syms.length, size, size));
+  const gap=size, total=use.length*size+(use.length-1)*gap;
   let x=(W-total)/2 + size/2;
-  for(const s of syms){ drawFigure(s, x, cy, size); x+=size+gap; }
+  for(const s of use){ drawFigure(s, x, cy, size); x+=size+gap; }
 }
 
 // =====================================================================================
@@ -659,21 +702,24 @@ function drawTest(){
   const cx=W/2, cy=H/2;
   let heightPx;
   if(store.calibrated) heightPx = optotypeHeightPx(lm, store.distanceMm, store.pxPerMm);
-  else heightPx = H*0.5*Math.pow(10, lm-1.0); // fallback aproximado
+  else heightPx = Math.min(H*0.9, H*0.5*Math.pow(10, lm-1.0)); // fallback aproximado
+  S.lastHeightPx = heightPx;
 
   ctx.save();
   if(store.mirror){ ctx.translate(W,0); ctx.scale(-1,1); } // modo espelho: inverte horizontalmente
 
   switch(t.id){
     case 'SNELLEN': case 'LOGMAR': case 'NUMBERS': case 'HOTV': case 'LEANUM': {
+      const gf = gapFactorFor(lm);
       if(S.letterMode==='single'){
         drawCrowded(pickLetters(t.id, S.seed, S.acuityIndex, 1)[0], cx, cy, heightPx);
       } else {
-        const letters = pickLetters(t.id, S.seed, S.acuityIndex, 5);
-        drawGlyphRow(letters, cy, heightPx);
+        const n = S.rowCount = rowCountFor(t.id, heightPx, lm);
+        const letters = pickLetters(t.id, S.seed, S.acuityIndex, n);
+        drawGlyphRow(letters, cy, heightPx, gf);
         if(S.letterMode==='pointer'){
-          const lay = letterRowLayout(5, heightPx);
-          const idx = ((S.pointerIdx%5)+5)%5;
+          const lay = letterRowLayout(n, heightPx, gf);
+          const idx = ((S.pointerIdx%n)+n)%n;
           drawPointer(lay.startX + idx*lay.step, cy, heightPx);
         }
       }
@@ -800,7 +846,8 @@ function renderExams(){
 }
 
 function renderSettings(){
-  const calib = store.calibrated ? `Calibrado ${store.pxPerMm.toFixed(2)} px/mm` : '⚠ Tela não calibrada';
+  const method = store.calibMethod==='objeto' ? ' (por objeto)' : store.calibMethod==='auto' ? ' (automática)' : '';
+  const calib = store.calibrated ? `Calibrado ${store.pxPerMm.toFixed(2)} px/mm${method}` : '⚠ Tela não calibrada';
   const orient = store.orientation==='port' ? 'Vertical' : 'Horizontal';
   const inches = store.inches ? ` &nbsp;•&nbsp; ${store.inches.toFixed(1)}"` : '';
   const mirror = store.mirror ? ' &nbsp;•&nbsp; 🪞 espelho' : '';
@@ -943,6 +990,9 @@ function renderHud(){
   if(store.calibrated===false && S.test.scale){
     warn.textContent='⚠ Tela não calibrada — tamanho apenas aproximado. Calibre no menu.';
     warn.style.display='block';
+  } else if(S.test.scale && S.lastHeightPx > H*0.95){
+    warn.textContent='⚠ Optótipo maior que a tela nesta linha — reduza a distância do paciente.';
+    warn.style.display='block';
   }
   if(!S.showHud) return;
   const t=S.test, lm = AcuityLogMar[S.acuityIndex];
@@ -985,6 +1035,8 @@ function openTest(t){
   S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
   S.letterMode='row'; S.pointerIdx=0;
   S.screen='TEST';
+  // Fire TV: pede brilho máximo durante o exame (a Activity implementa se disponível).
+  try{ if(window.Android && window.Android.setBrightness) window.Android.setBrightness(1.0); }catch(e){}
 }
 const LETTER_CHARTS = ['SNELLEN','LOGMAR','NUMBERS','HOTV','LEANUM'];
 function handle(key){
@@ -1044,7 +1096,7 @@ function handle(key){
     else if(key==='ok'){
       const px=autoPxPerMm(S.inches);
       store.inches=S.inches;
-      if(px>0){ store.pxPerMm=px; }
+      if(px>0){ store.pxPerMm=px; store.calibMethod='auto'; }
       S.screen='SETTINGS'; render();
     }
     else if(key==='back'){ S.screen='SETTINGS'; render(); }
@@ -1069,7 +1121,7 @@ function handle(key){
     else if(key==='right'){ S.calibLengthPx+=2; render(); }
     else if(key==='up'){ S.refIndex=(S.refIndex-1+REF_OBJECTS.length)%REF_OBJECTS.length; render(); }
     else if(key==='down'){ S.refIndex=(S.refIndex+1)%REF_OBJECTS.length; render(); }
-    else if(key==='ok'){ store.pxPerMm=S.calibLengthPx/REF_OBJECTS[S.refIndex].mm; S.screen='SETTINGS'; render(); }
+    else if(key==='ok'){ store.pxPerMm=S.calibLengthPx/REF_OBJECTS[S.refIndex].mm; store.calibMethod='objeto'; S.savedFlash=true; S.screen='SETTINGS'; render(); }
     else if(key==='back'){ S.screen='SETTINGS'; render(); }
     return;
   }
@@ -1089,14 +1141,14 @@ function handle(key){
     else if(key==='left'){
       if(id==='CONTRAST') S.contrast=Math.max(0.02,S.contrast-0.04);
       else if(id==='DIAL'){}   // dial é padrão fixo (leque com números e graus)
-      else if(isLetter && S.letterMode==='pointer') S.pointerIdx=(S.pointerIdx+4)%5; // move -1
+      else if(isLetter && S.letterMode==='pointer'){ const n=S.rowCount||5; S.pointerIdx=(S.pointerIdx+n-1)%n; } // move -1
       else S.seed--;
       render();
     }
     else if(key==='right'){
       if(id==='CONTRAST') S.contrast=Math.min(1.0,S.contrast+0.04);
       else if(id==='DIAL'){}
-      else if(isLetter && S.letterMode==='pointer') S.pointerIdx=(S.pointerIdx+1)%5; // move +1
+      else if(isLetter && S.letterMode==='pointer'){ const n=S.rowCount||5; S.pointerIdx=(S.pointerIdx+1)%n; } // move +1
       else S.seed++;
       render();
     }
