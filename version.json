@@ -1,4 +1,4 @@
 {
-  "version": 21,
-  "notes": "Snellen: linha logMAR -0,1 rotulada como 20/15 (antes 20/16)."
+  "version": 22,
+  "notes": "Snellen (e Números/HOTV/LEA núm.): a fila se estica para ocupar quase toda a largura da tela — quanto menor a letra, maior o espaçamento. LogMAR/ETDRS mantém o vão clínico fixo."
 }
