@@ -1,4 +1,4 @@
 {
-  "version": 25,
-  "notes": "Zoom do painel: banner ocupando toda a parte superior da tela, só com a medida Snellen (ex.: 20/100) em fonte gigante, por 3 s a cada mudança."
+  "version": 26,
+  "notes": "Modo ponteiro: marcador maior (mínimo ~5% da altura da tela). Banner da medida Snellen agora dura 1 segundo."
 }
