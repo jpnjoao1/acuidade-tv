@@ -1,4 +1,4 @@
 {
-  "version": 27,
-  "notes": "E direcional (e Landolt): mais optótipos por linha (até 8, orientações podem repetir), distribuídos nos 70% centrais da tela."
+  "version": 28,
+  "notes": "Banner da medida: 50% menor e só nos testes Snellen, Números, E direcional, HOTV, Números LEA, Landolt, Símbolos LEA, Figuras e Contraste."
 }
