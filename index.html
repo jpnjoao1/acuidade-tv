@@ -108,7 +108,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 21;
+const WEB_VERSION = 22;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -386,30 +386,33 @@ function drawGlyph(text, cx, cy, heightPx, color='#000'){
   ctx.fillStyle = color; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(text, cx, cy);
 }
-// Espaço entre letras (em avanços): linhas pequenas (20/100 e melhores) ganham
-// espaçamento maior, a pedido clínico; linhas grandes usam o padrão (1 letra de vão).
-function gapFactorFor(lm){ return lm <= 0.71 ? 1.7 : 1.0; }
 // Quantas letras a linha comporta SEM cortar (o tamanho da letra é clínico e nunca
 // encolhe): linhas grandes reduzem a contagem (5 → 4 → …); linhas pequenas podem
 // ganhar mais letras, até o limite do pool (sem repetir) — LogMAR/ETDRS fixa em 5.
-function rowCountFor(id, heightPx, lm){
+// A contagem considera o vão mínimo de 1 letra entre optótipos.
+function rowCountFor(id, heightPx){
   setFontForCapHeight(heightPx);
-  const adv = ctx.measureText('E').width, gf = gapFactorFor(lm), maxW = W*0.94;
+  const adv = ctx.measureText('E').width, maxW = W*0.94;
   const cap = Math.min(pool(id).length, id==='LOGMAR' ? 5 : 8);
   let n = Math.min(cap, 5);
-  while(n < cap && (n+1)*adv + n*adv*gf <= maxW) n++;
-  while(n > 1 && n*adv + (n-1)*adv*gf > maxW) n--;
+  while(n < cap && (n+1)*adv + n*adv <= maxW) n++;
+  while(n > 1 && n*adv + (n-1)*adv > maxW) n--;
   return n;
 }
-function letterRowLayout(count, heightPx, gf){
+// justify: a fila é esticada para ocupar quase toda a largura da tela — quanto menor
+// a letra, maior o vão (pedido clínico). O vão nunca fica menor que 1 letra (padrão).
+// Sem justify (LogMAR/ETDRS), mantém o vão clínico fixo de 1 letra.
+function letterRowLayout(count, heightPx, justify){
   setFontForCapHeight(heightPx);
-  const advance = ctx.measureText('E').width, gap = advance*(gf||1);
+  const advance = ctx.measureText('E').width;
+  let gap = advance;
+  if(justify && count>1) gap = Math.max(advance, (W*0.94 - count*advance) / (count-1));
   const total = count*advance + (count-1)*gap;
   const startX = (W-total)/2 + advance/2;
   return { advance, gap, startX, step: advance+gap };
 }
-function drawGlyphRow(letters, cy, heightPx, gf, color='#000'){
-  const lay = letterRowLayout(letters.length, heightPx, gf);
+function drawGlyphRow(letters, cy, heightPx, justify, color='#000'){
+  const lay = letterRowLayout(letters.length, heightPx, justify);
   ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
   let x = lay.startX;
   for(const l of letters){ ctx.fillText(l, x, cy); x += lay.step; }
@@ -717,15 +720,15 @@ function drawTest(){
 
   switch(t.id){
     case 'SNELLEN': case 'LOGMAR': case 'NUMBERS': case 'HOTV': case 'LEANUM': {
-      const gf = gapFactorFor(lm);
+      const justify = t.id!=='LOGMAR';   // ETDRS mantém o vão clínico fixo de 1 letra
       if(S.letterMode==='single'){
         drawCrowded(pickLetters(t.id, S.seed, S.acuityIndex, 1)[0], cx, cy, heightPx);
       } else {
-        const n = S.rowCount = rowCountFor(t.id, heightPx, lm);
+        const n = S.rowCount = rowCountFor(t.id, heightPx);
         const letters = pickLetters(t.id, S.seed, S.acuityIndex, n);
-        drawGlyphRow(letters, cy, heightPx, gf);
+        drawGlyphRow(letters, cy, heightPx, justify);
         if(S.letterMode==='pointer'){
-          const lay = letterRowLayout(n, heightPx, gf);
+          const lay = letterRowLayout(n, heightPx, justify);
           const idx = ((S.pointerIdx%n)+n)%n;
           drawPointer(lay.startX + idx*lay.step, cy, heightPx);
         }
