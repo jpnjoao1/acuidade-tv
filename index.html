@@ -115,7 +115,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 26;
+const WEB_VERSION = 27;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -592,9 +592,16 @@ function drawIshihara(digit, seed, reveal){
 }
 
 function drawDirectionalRow(seed, heightPx, drawFn){
-  const count=fitCount(4, heightPx, heightPx), gap=heightPx, total=count*heightPx+(count-1)*gap;
-  let x=(W-total)/2 + heightPx/2;
-  for(let i=0;i<count;i++){ drawFn(x, heightPx, Math.abs(seed+i*13)%4); x+=heightPx+gap; }
+  // Mais optótipos por linha (até 8, orientações podem repetir), distribuídos nos
+  // 70% centrais; nas linhas grandes o vão comprime (até 0,3) para caberem sem cortar.
+  const s=heightPx;
+  let count=5;
+  while(count<8 && (count+1)*s + count*s <= W*ROW_TARGET) count++;
+  while(count>1 && count*s + (count-1)*s*MIN_GAP > W*ROW_HARD) count--;
+  const gap = count>1 ? Math.max((W*ROW_TARGET - count*s)/(count-1), s*MIN_GAP) : 0;
+  const total=count*s+(count-1)*gap;
+  let x=(W-total)/2 + s/2;
+  for(let i=0;i<count;i++){ drawFn(x, s, Math.abs(seed+i*13)%4); x+=s+gap; }
 }
 
 // ---- VISÃO BINOCULAR (fundo preto; usar óculos vermelho-verde) ----
