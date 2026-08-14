@@ -1,4 +1,4 @@
 {
-  "version": 23,
-  "notes": "Snellen: 20/400-20/800 com 3 letras; filas ocupam os 70% centrais (15% de margem por lado); letra K no alfabeto; canvas opaco para branco máximo do fundo."
+  "version": 24,
+  "notes": "Snellen: 3 letras no 20/400-20/800, filas nos 70% centrais (15% de margem por lado), letra K, fundo branco máximo (canvas opaco) e painel de referências que amplia por 3 s a cada mudança para leitura à distância."
 }
