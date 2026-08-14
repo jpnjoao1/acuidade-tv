@@ -1,4 +1,4 @@
 {
-  "version": 28,
-  "notes": "Banner da medida: 50% menor e só nos testes Snellen, Números, E direcional, HOTV, Números LEA, Landolt, Símbolos LEA, Figuras e Contraste."
+  "version": 29,
+  "notes": "E direcional e Landolt: orientações realmente embaralhadas (sem padrão sequencial), na fila e no modo de 1 optótipo."
 }

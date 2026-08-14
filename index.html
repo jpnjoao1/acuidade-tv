@@ -115,7 +115,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 28;
+const WEB_VERSION = 29;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -351,7 +351,8 @@ function pickLetters(id, seed, acuityIndex, count){
   for(let i=0;i<count;i++) out.push(p[i % p.length]);
   return out;
 }
-const orientationFrom = seed => Math.abs(seed) % 4;
+// Orientação sorteada (não sequencial): mudar o seed dá uma direção imprevisível.
+const orientationFrom = seed => (mulberry32(seed*31 + 7)()*4)|0;
 
 // =====================================================================================
 // CANVAS
@@ -601,7 +602,8 @@ function drawDirectionalRow(seed, heightPx, drawFn){
   const gap = count>1 ? Math.max((W*ROW_TARGET - count*s)/(count-1), s*MIN_GAP) : 0;
   const total=count*s+(count-1)*gap;
   let x=(W-total)/2 + s/2;
-  for(let i=0;i<count;i++){ drawFn(x, s, Math.abs(seed+i*13)%4); x+=s+gap; }
+  const rnd = mulberry32(seed*47 + 11);   // orientações embaralhadas de verdade (sem padrão)
+  for(let i=0;i<count;i++){ drawFn(x, s, (rnd()*4)|0); x+=s+gap; }
 }
 
 // ---- VISÃO BINOCULAR (fundo preto; usar óculos vermelho-verde) ----
