@@ -1,4 +1,4 @@
 {
-  "version": 24,
-  "notes": "Snellen: 3 letras no 20/400-20/800, filas nos 70% centrais (15% de margem por lado), letra K, fundo branco máximo (canvas opaco) e painel de referências que amplia por 3 s a cada mudança para leitura à distância."
+  "version": 25,
+  "notes": "Zoom do painel: banner ocupando toda a parte superior da tela, só com a medida Snellen (ex.: 20/100) em fonte gigante, por 3 s a cada mudança."
 }
