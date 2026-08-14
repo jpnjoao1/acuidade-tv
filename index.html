@@ -94,14 +94,13 @@
   #hud .h2 { font-size:14px; color:#9BD0FF; }
   #hud .h3 { font-size:13px; color:#bbb; }
   #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; }
-  /* Zoom temporário do painel a cada mudança (3 s): grande e flutuante no topo,
-     para o examinador ler a acuidade de longe. */
-  #hud.big { top:18px; left:50%; right:auto; transform:translateX(-50%); text-align:center;
-    padding:22px 40px; border-radius:16px; border:2px solid var(--gold); box-shadow:0 14px 44px #000d; }
-  #hud.big .h1 { font-size:32px; }
-  #hud.big .h2 { font-size:48px; margin-top:4px; }
-  #hud.big .h3 { font-size:22px; margin-top:4px; }
-  #hud.big .h4 { display:none; }
+  /* Zoom temporário do painel a cada mudança (3 s): banner ocupando toda a parte
+     superior da tela, só com a medida Snellen em fonte gigante, p/ leitura de longe. */
+  #hud.big { top:0; left:0; right:0; transform:none; text-align:center; border-radius:0;
+    border:none; border-bottom:4px solid var(--gold); background:#0E2036f5;
+    padding:2.5vh 0 3vh; box-shadow:0 12px 44px #000c; }
+  #hud.big .bigval { font-size:22vh; font-weight:800; color:#fff; line-height:1.02;
+    letter-spacing:2px; font-family:"Segoe UI", Roboto, Arial, sans-serif; }
   #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
     color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
 </style>
@@ -116,7 +115,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 24;
+const WEB_VERSION = 25;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -1037,6 +1036,11 @@ function renderHud(){
   }
   if(!S.showHud && !S.hudBig){ hud.style.display='none'; return; } // zoom de 3 s aparece mesmo oculto
   const t=S.test, lm = AcuityLogMar[S.acuityIndex];
+  if(S.hudBig){ // banner superior: só a medida Snellen, gigante
+    hud.innerHTML = `<div class="bigval">${t.scale ? '20/'+snellenFeet(lm) : t.title}</div>`;
+    hud.style.display='block';
+    return;
+  }
   const acuity = t.scale
     ? `<div class="h2">20/${snellenFeet(lm)} • 6/${snellenMeters(lm)} • dec ${decimalAc(lm).toFixed(2)} • logMAR ${lm>=0?'+':''}${lm.toFixed(1)}</div>` : '';
   const contrast = t.id==='CONTRAST' ? `<div class="h2">Contraste: ${Math.round(S.contrast*100)}%</div>` : '';
