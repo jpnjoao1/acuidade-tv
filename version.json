@@ -1,4 +1,4 @@
 {
-  "version": 26,
-  "notes": "Modo ponteiro: marcador maior (mínimo ~5% da altura da tela). Banner da medida Snellen agora dura 1 segundo."
+  "version": 27,
+  "notes": "E direcional (e Landolt): mais optótipos por linha (até 8, orientações podem repetir), distribuídos nos 70% centrais da tela."
 }
