@@ -94,7 +94,7 @@
   #hud .h2 { font-size:14px; color:#9BD0FF; }
   #hud .h3 { font-size:13px; color:#bbb; }
   #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; }
-  /* Zoom temporário do painel a cada mudança (3 s): banner ocupando toda a parte
+  /* Zoom temporário do painel a cada mudança (1 s): banner ocupando toda a parte
      superior da tela, só com a medida Snellen em fonte gigante, p/ leitura de longe. */
   #hud.big { top:0; left:0; right:0; transform:none; text-align:center; border-radius:0;
     border:none; border-bottom:4px solid var(--gold); background:#0E2036f5;
@@ -115,7 +115,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 25;
+const WEB_VERSION = 26;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -452,12 +452,14 @@ function drawCrowded(text, cx, cy, h){
   ctx.fillRect(cx-half-gap-t, cy-half, t, h);   // esquerda
   ctx.fillRect(cx+half+gap, cy-half, t, h);     // direita
 }
-// Ponteiro dourado (seta + traço) sob o optótipo apontado.
+// Ponteiro dourado (seta + traço) sob o optótipo apontado. Escala com a letra,
+// mas nunca fica menor que ~5% da altura da tela (visível de longe nas linhas pequenas).
 function drawPointer(cx, cy, h){
-  const y=cy+h/2+h*0.22, bar=Math.max(3,h*0.09);
+  const s = Math.max(h*1.4, H*0.05);
+  const y = cy + h/2 + Math.max(h*0.22, 10), bar = Math.max(5, s*0.11);
   ctx.fillStyle='#C6A24C';
-  ctx.fillRect(cx-h/2, y, h, bar);
-  ctx.beginPath(); ctx.moveTo(cx, y-h*0.14); ctx.lineTo(cx-h*0.15, y); ctx.lineTo(cx+h*0.15, y); ctx.closePath(); ctx.fill();
+  ctx.fillRect(cx-s/2, y, s, bar);
+  ctx.beginPath(); ctx.moveTo(cx, y-s*0.16); ctx.lineTo(cx-s*0.17, y); ctx.lineTo(cx+s*0.17, y); ctx.closePath(); ctx.fill();
 }
 function drawGlyphRowInBox(letters, left, width, cy, heightPx){
   setFontForCapHeight(heightPx);
@@ -1013,7 +1015,7 @@ function renderDist(){
   </div>`;
 }
 
-// A cada mudança no teste, amplia o painel por 3 s para o examinador ver de longe.
+// A cada mudança no teste, mostra o banner por 1 s para o examinador ver de longe.
 let hudTimer = null;
 function hudFlash(){
   if(S.test.id==='BLANK') return;
@@ -1022,7 +1024,7 @@ function hudFlash(){
   hudTimer = setTimeout(() => {
     S.hudBig = false; hudTimer = null;
     if(S.screen==='TEST') renderHud();
-  }, 3000);
+  }, 1000);
 }
 function renderHud(){
   hud.className = S.hudBig ? 'big' : '';
@@ -1034,7 +1036,7 @@ function renderHud(){
     warn.textContent='⚠ Optótipo maior que a tela nesta linha — reduza a distância do paciente.';
     warn.style.display='block';
   }
-  if(!S.showHud && !S.hudBig){ hud.style.display='none'; return; } // zoom de 3 s aparece mesmo oculto
+  if(!S.showHud && !S.hudBig){ hud.style.display='none'; return; } // zoom de 1 s aparece mesmo oculto
   const t=S.test, lm = AcuityLogMar[S.acuityIndex];
   if(S.hudBig){ // banner superior: só a medida Snellen, gigante
     hud.innerHTML = `<div class="bigval">${t.scale ? '20/'+snellenFeet(lm) : t.title}</div>`;
