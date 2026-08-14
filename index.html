@@ -94,13 +94,13 @@
   #hud .h2 { font-size:14px; color:#9BD0FF; }
   #hud .h3 { font-size:13px; color:#bbb; }
   #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; }
-  /* Zoom temporário do painel a cada mudança (1 s): banner ocupando toda a parte
-     superior da tela, só com a medida Snellen em fonte gigante, p/ leitura de longe. */
+  /* Zoom temporário do painel a cada mudança (1 s): banner na parte superior da
+     tela, só com a medida Snellen em fonte grande, p/ leitura de longe. */
   #hud.big { top:0; left:0; right:0; transform:none; text-align:center; border-radius:0;
-    border:none; border-bottom:4px solid var(--gold); background:#0E2036f5;
-    padding:2.5vh 0 3vh; box-shadow:0 12px 44px #000c; }
-  #hud.big .bigval { font-size:22vh; font-weight:800; color:#fff; line-height:1.02;
-    letter-spacing:2px; font-family:"Segoe UI", Roboto, Arial, sans-serif; }
+    border:none; border-bottom:3px solid var(--gold); background:#0E2036f5;
+    padding:1.2vh 0 1.5vh; box-shadow:0 8px 30px #000c; }
+  #hud.big .bigval { font-size:11vh; font-weight:800; color:#fff; line-height:1.02;
+    letter-spacing:1px; font-family:"Segoe UI", Roboto, Arial, sans-serif; }
   #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
     color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
 </style>
@@ -115,7 +115,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 27;
+const WEB_VERSION = 28;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -1023,9 +1023,11 @@ function renderDist(){
 }
 
 // A cada mudança no teste, mostra o banner por 1 s para o examinador ver de longe.
+// Só nos testes de acuidade com fila de optótipos (pedido clínico).
+const BANNER_TESTS = ['SNELLEN','NUMBERS','E','HOTV','LEANUM','LANDOLT','LEA','FIGURES','CONTRAST'];
 let hudTimer = null;
 function hudFlash(){
-  if(S.test.id==='BLANK') return;
+  if(!BANNER_TESTS.includes(S.test.id)) return;
   S.hudBig = true;
   if(hudTimer) clearTimeout(hudTimer);
   hudTimer = setTimeout(() => {
@@ -1045,8 +1047,8 @@ function renderHud(){
   }
   if(!S.showHud && !S.hudBig){ hud.style.display='none'; return; } // zoom de 1 s aparece mesmo oculto
   const t=S.test, lm = AcuityLogMar[S.acuityIndex];
-  if(S.hudBig){ // banner superior: só a medida Snellen, gigante
-    hud.innerHTML = `<div class="bigval">${t.scale ? '20/'+snellenFeet(lm) : t.title}</div>`;
+  if(S.hudBig){ // banner superior: só a medida Snellen
+    hud.innerHTML = `<div class="bigval">20/${snellenFeet(lm)}</div>`;
     hud.style.display='block';
     return;
   }
