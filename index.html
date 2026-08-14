@@ -12,7 +12,7 @@
   /* Modo vertical: gira 90° o conteúdo (a saída da Fire TV é sempre paisagem).
      Usa unidades CSS (100vw/100vh) — confiáveis mesmo quando a media query e o innerWidth divergem. */
   #root.port { width:100vh; height:100vw; transform-origin:0 0; transform:translate(100vw,0) rotate(90deg); }
-  canvas { position:absolute; inset:0; display:none; }
+  canvas { position:absolute; inset:0; display:none; background:#FFFFFF; }
   #ui { position:absolute; inset:0; }
 
   /* ---- Paleta (azul-escuro + dourado) ---- */
@@ -94,6 +94,14 @@
   #hud .h2 { font-size:14px; color:#9BD0FF; }
   #hud .h3 { font-size:13px; color:#bbb; }
   #hud .h4 { font-size:12px; color:#ffffff99; margin-top:4px; }
+  /* Zoom temporário do painel a cada mudança (3 s): grande e flutuante no topo,
+     para o examinador ler a acuidade de longe. */
+  #hud.big { top:18px; left:50%; right:auto; transform:translateX(-50%); text-align:center;
+    padding:22px 40px; border-radius:16px; border:2px solid var(--gold); box-shadow:0 14px 44px #000d; }
+  #hud.big .h1 { font-size:32px; }
+  #hud.big .h2 { font-size:48px; margin-top:4px; }
+  #hud.big .h3 { font-size:22px; margin-top:4px; }
+  #hud.big .h4 { display:none; }
   #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
     color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
 </style>
@@ -108,7 +116,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 22;
+const WEB_VERSION = 24;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -155,7 +163,7 @@ const TESTS = [
   { id:'BLANK',    title:'Tela branca',           short:'Tela branca',  icon:'blank',    sub:'Tela 100% branca.',                             scale:false },
 ];
 const SLOAN   = ['C','D','H','K','N','O','R','S','V','Z'];
-const SNELLEN = ['C','D','E','F','L','N','O','P','R','T','Z'];
+const SNELLEN = ['C','D','E','F','K','L','N','O','P','R','T','Z'];
 const DIGITS  = ['2','3','4','5','6','7','8','9'];
 const HOTV    = ['H','O','T','V'];
 const LEANUM  = ['5','6','8','9'];
@@ -278,6 +286,7 @@ const S = {
   pointerIdx: 0,
   rowCount: 5,         // letras na fila atual (adaptativo ao tamanho)
   lastHeightPx: 0,
+  hudBig: false,       // painel ampliado temporariamente (após mudança)
   mirrorWork: false,
 };
 
@@ -350,7 +359,9 @@ const orientationFrom = seed => Math.abs(seed) % 4;
 // =====================================================================================
 const root = document.getElementById('root');
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+// alpha:false = canvas opaco: o branco do teste nunca é mesclado com o fundo escuro
+// do app (em alguns WebViews isso deixava a tela acinzentada).
+const ctx = canvas.getContext('2d', {alpha:false});
 let W = 0, H = 0;
 
 // Aplica a orientação escolhida. 'port' gira todo o conteúdo 90° (para monitor montado
@@ -386,27 +397,36 @@ function drawGlyph(text, cx, cy, heightPx, color='#000'){
   ctx.fillStyle = color; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(text, cx, cy);
 }
+// Largura das filas justificadas: preenchem 70% da tela (15% livres de cada lado).
+// O limite físico de 94% só entra para as linhas grandes caberem sem cortar, e o
+// vão entre letras nunca fica menor que 0,3 letra.
+const ROW_TARGET = 0.70, ROW_HARD = 0.94, MIN_GAP = 0.3;
 // Quantas letras a linha comporta SEM cortar (o tamanho da letra é clínico e nunca
-// encolhe): linhas grandes reduzem a contagem (5 → 4 → …); linhas pequenas podem
-// ganhar mais letras, até o limite do pool (sem repetir) — LogMAR/ETDRS fixa em 5.
-// A contagem considera o vão mínimo de 1 letra entre optótipos.
-function rowCountFor(id, heightPx){
+// encolhe): linhas grandes reduzem a contagem; linhas pequenas podem ganhar mais
+// letras, até o limite do pool (sem repetir) — LogMAR/ETDRS fixa em 5.
+// Linhas 20/400, 20/600 e 20/800: alvo de 3 letras (pedido clínico).
+function rowCountFor(id, heightPx, lm, justify){
   setFontForCapHeight(heightPx);
-  const adv = ctx.measureText('E').width, maxW = W*0.94;
+  const adv = ctx.measureText('E').width;
   const cap = Math.min(pool(id).length, id==='LOGMAR' ? 5 : 8);
+  const growW = W*(justify ? ROW_TARGET : ROW_HARD), minGapF = justify ? MIN_GAP : 1.0;
   let n = Math.min(cap, 5);
-  while(n < cap && (n+1)*adv + n*adv <= maxW) n++;
-  while(n > 1 && n*adv + (n-1)*adv > maxW) n--;
+  while(n < cap && (n+1)*adv + n*adv <= growW) n++;
+  while(n > 1 && n*adv + (n-1)*adv*minGapF > W*ROW_HARD) n--;
+  if(justify && lm >= 1.29) n = Math.min(n, 3);
   return n;
 }
-// justify: a fila é esticada para ocupar quase toda a largura da tela — quanto menor
-// a letra, maior o vão (pedido clínico). O vão nunca fica menor que 1 letra (padrão).
-// Sem justify (LogMAR/ETDRS), mantém o vão clínico fixo de 1 letra.
+// justify: a fila é esticada para ocupar os 70% centrais da tela — quanto menor a
+// letra, maior o vão. Nas linhas grandes o vão encolhe (até 0,3 letra) para caberem
+// mais optótipos. Sem justify (LogMAR/ETDRS), vão clínico fixo de 1 letra.
 function letterRowLayout(count, heightPx, justify){
   setFontForCapHeight(heightPx);
   const advance = ctx.measureText('E').width;
   let gap = advance;
-  if(justify && count>1) gap = Math.max(advance, (W*0.94 - count*advance) / (count-1));
+  if(justify && count>1){
+    const ideal = (W*ROW_TARGET - count*advance) / (count-1);
+    gap = Math.max(ideal, advance*MIN_GAP);
+  }
   const total = count*advance + (count-1)*gap;
   const startX = (W-total)/2 + advance/2;
   return { advance, gap, startX, step: advance+gap };
@@ -707,7 +727,7 @@ function drawFigureRow(syms, cy, size){
 function drawTest(){
   resizeCanvas(); // garante W/H atuais (evita canvas 1px se o layout ainda não estava pronto)
   const t=S.test;
-  ctx.fillStyle = t.dark ? '#000' : '#fff'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = t.dark ? '#000000' : '#FFFFFF'; ctx.fillRect(0,0,W,H);
   const lm = AcuityLogMar[S.acuityIndex];
   const cx=W/2, cy=H/2;
   let heightPx;
@@ -724,7 +744,7 @@ function drawTest(){
       if(S.letterMode==='single'){
         drawCrowded(pickLetters(t.id, S.seed, S.acuityIndex, 1)[0], cx, cy, heightPx);
       } else {
-        const n = S.rowCount = rowCountFor(t.id, heightPx);
+        const n = S.rowCount = rowCountFor(t.id, heightPx, lm, justify);
         const letters = pickLetters(t.id, S.seed, S.acuityIndex, n);
         drawGlyphRow(letters, cy, heightPx, justify);
         if(S.letterMode==='pointer'){
@@ -994,7 +1014,19 @@ function renderDist(){
   </div>`;
 }
 
+// A cada mudança no teste, amplia o painel por 3 s para o examinador ver de longe.
+let hudTimer = null;
+function hudFlash(){
+  if(S.test.id==='BLANK') return;
+  S.hudBig = true;
+  if(hudTimer) clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => {
+    S.hudBig = false; hudTimer = null;
+    if(S.screen==='TEST') renderHud();
+  }, 3000);
+}
 function renderHud(){
+  hud.className = S.hudBig ? 'big' : '';
   if(S.test.id==='BLANK'){ hud.style.display='none'; warn.style.display='none'; return; } // 100% branca
   if(store.calibrated===false && S.test.scale){
     warn.textContent='⚠ Tela não calibrada — tamanho apenas aproximado. Calibre no menu.';
@@ -1003,7 +1035,7 @@ function renderHud(){
     warn.textContent='⚠ Optótipo maior que a tela nesta linha — reduza a distância do paciente.';
     warn.style.display='block';
   }
-  if(!S.showHud) return;
+  if(!S.showHud && !S.hudBig){ hud.style.display='none'; return; } // zoom de 3 s aparece mesmo oculto
   const t=S.test, lm = AcuityLogMar[S.acuityIndex];
   const acuity = t.scale
     ? `<div class="h2">20/${snellenFeet(lm)} • 6/${snellenMeters(lm)} • dec ${decimalAc(lm).toFixed(2)} • logMAR ${lm>=0?'+':''}${lm.toFixed(1)}</div>` : '';
@@ -1043,6 +1075,7 @@ function openTest(t){
   S.test=t; S.acuityIndex=DEFAULT_ACUITY_INDEX;
   S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
   S.letterMode='row'; S.pointerIdx=0;
+  S.hudBig=false; if(hudTimer){ clearTimeout(hudTimer); hudTimer=null; }
   S.screen='TEST';
   // Fire TV: pede brilho máximo durante o exame (a Activity implementa se disponível).
   try{ if(window.Android && window.Android.setBrightness) window.Android.setBrightness(1.0); }catch(e){}
@@ -1145,6 +1178,7 @@ function handle(key){
   }
   if(S.screen==='TEST'){
     const id=S.test.id, isLetter=LETTER_CHARTS.includes(id);
+    if(key==='up'||key==='down'||key==='left'||key==='right'||key==='ok') hudFlash();
     if(key==='up'){ if(S.test.scale) S.acuityIndex=Math.max(0,S.acuityIndex-1); render(); }
     else if(key==='down'){ if(S.test.scale) S.acuityIndex=Math.min(AcuityLogMar.length-1,S.acuityIndex+1); render(); }
     else if(key==='left'){
@@ -1169,7 +1203,7 @@ function handle(key){
       render();
     }
     else if(key==='menu'){ S.showHud=!S.showHud; render(); }
-    else if(key==='back'){ S.screen='EXAMS'; render(); }
+    else if(key==='back'){ S.hudBig=false; if(hudTimer){ clearTimeout(hudTimer); hudTimer=null; } S.screen='EXAMS'; render(); }
     return;
   }
 }

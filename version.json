@@ -1,4 +1,4 @@
 {
-  "version": 22,
-  "notes": "Snellen (e Números/HOTV/LEA núm.): a fila se estica para ocupar quase toda a largura da tela — quanto menor a letra, maior o espaçamento. LogMAR/ETDRS mantém o vão clínico fixo."
+  "version": 24,
+  "notes": "Snellen: 3 letras no 20/400-20/800, filas nos 70% centrais (15% de margem por lado), letra K, fundo branco máximo (canvas opaco) e painel de referências que amplia por 3 s a cada mudança para leitura à distância."
 }
