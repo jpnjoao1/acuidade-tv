@@ -115,7 +115,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 29;
+const WEB_VERSION = 30;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -142,6 +142,7 @@ const optotypeHeightPx = (lm, distMm, pxPerMm) => optotypeHeightMm(lm, distMm) *
 const TESTS = [
   { id:'SNELLEN',  title:'Tabela Snellen',        short:'Snellen',      icon:'snellen',  sub:'Letras clássicas. Triagem padrão.',            scale:true },
   { id:'LOGMAR',   title:'LogMAR / ETDRS',        short:'LogMAR',       icon:'logmar',   sub:'Letras Sloan em progressão logarítmica.',      scale:true },
+  { id:'ETDRS',    title:'ETDRS — carta completa', short:'ETDRS carta', icon:'etdrs',    sub:'Várias linhas na tela, como a carta impressa.', scale:true },
   { id:'NUMBERS',  title:'Números',               short:'Números',      icon:'numbers',  sub:'Optótipos numéricos.',                          scale:true },
   { id:'HOTV',     title:'HOTV (infantil)',       short:'HOTV',         icon:'hotv',     sub:'Letras H O T V para crianças (combinar).',      scale:true },
   { id:'LEANUM',   title:'Números LEA',           short:'Números LEA',  icon:'leanum',   sub:'Números 5 6 8 9 (infantil).',                   scale:true },
@@ -184,6 +185,7 @@ const ICONS = {
   settings: SVG('<circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 0 1 0-4h.2A1.7 1.7 0 0 0 4.4 7l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/>', STROKE),
   snellen: SVG('<text x="12" y="18.5" font-size="20" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">E</text>'),
   logmar: SVG('<text x="12" y="18.5" font-size="18" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">R</text>'),
+  etdrs: SVG('<g fill="currentColor" font-family="Arial" font-weight="800" text-anchor="middle"><text x="12" y="9" font-size="8">NCK</text><text x="12" y="15.5" font-size="5.5">ZOR</text><text x="12" y="20.5" font-size="4">HSDV</text></g>'),
   numbers: SVG('<text x="12" y="17.5" font-size="14" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">573</text>'),
   tumbling: SVG('<g transform="rotate(90 12 12)"><text x="12" y="18.5" font-size="20" font-weight="800" text-anchor="middle" font-family="Arial" fill="currentColor">E</text></g>'),
   landolt: SVG('<path d="M20 8.5 A7 7 0 1 0 20 15.5" fill="none" stroke="currentColor" stroke-width="4"/>'),
@@ -472,6 +474,37 @@ function drawGlyphRowInBox(letters, left, width, cy, heightPx){
   let x = left + (width-total)/2 + adv/2;
   ctx.fillStyle='#000'; ctx.textAlign='center'; ctx.textBaseline='middle';
   for(const l of use){ ctx.fillText(l, x, cy); x += adv+gap; }
+}
+
+// ---- CARTA ETDRS COMPLETA (várias linhas na tela, como a carta impressa) ----
+// 5 letras Sloan por linha, vão de 1 letra, espaço entre linhas = altura da linha
+// de baixo (padrão ETDRS). Rótulo 20/x discreto à esquerda de cada linha.
+function etdrsRowHeightPx(lm){
+  return store.calibrated ? optotypeHeightPx(lm, store.distanceMm, store.pxPerMm)
+                          : Math.min(H*0.9, H*0.5*Math.pow(10, lm-1.0));
+}
+function drawEtdrs(){
+  const labelF = Math.max(14, H*0.022);
+  let idx = S.acuityIndex, y = H*0.05, drawn = 0;
+  while(idx < AcuityLogMar.length){
+    const lm = AcuityLogMar[idx], h = etdrsRowHeightPx(lm);
+    if(y + h > H*0.97) break;
+    const cy = y + h/2;
+    const n = rowCountFor('LOGMAR', h, lm, false);   // 5 letras; linhas enormes reduzem p/ não cortar
+    const letters = pickLetters('LOGMAR', S.seed + idx*101, idx, n);
+    drawGlyphRow(letters, cy, h, false);
+    if(h >= labelF*1.15){ // omite o rótulo nas linhas minúsculas (evita sobreposição)
+      ctx.fillStyle='#999'; ctx.font = labelF+'px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText('20/'+snellenFeet(lm), W*0.012, cy);
+    }
+    const nextH = idx+1 < AcuityLogMar.length ? etdrsRowHeightPx(AcuityLogMar[idx+1]) : 0;
+    y += h + nextH;
+    idx++; drawn++;
+  }
+  if(!drawn){ // linha do topo maior que a tela: orienta o examinador
+    ctx.fillStyle='#999'; ctx.font = labelF+'px Arial'; ctx.textAlign='center';
+    ctx.fillText('Linha maior que a tela — pressione ▼', W/2, H/2);
+  }
 }
 
 function withRot(cx, cy, orient, fn){
@@ -781,6 +814,7 @@ function drawTest(){
       if(S.single) drawFigure(FIGS[Math.abs(S.seed)%FIGS.length], cx, cy, heightPx);
       else drawFigureRow([0,1,2,3].map(i=>FIGS[Math.abs(S.seed+i*5)%FIGS.length]), cy, heightPx);
       break;
+    case 'ETDRS': drawEtdrs(); break;
     case 'DIAL': drawDial(); break;
     case 'DUO': drawDuochrome(pickLetters('LOGMAR', S.seed, S.acuityIndex, 3), heightPx); break;
     case 'CONTRAST': drawContrastLetter(pickLetters('LOGMAR', S.seed, S.acuityIndex, 1)[0], heightPx, S.contrast); break;
@@ -1075,6 +1109,7 @@ function hintFor(){
     return '▲▼ tamanho • ◀▶ embaralhar • OK: fila → único → ponteiro';
   }
   switch(id){
+    case 'ETDRS': return '▲▼ linha do topo • ◀▶ embaralhar letras';
     case 'CONTRAST': return '▲▼ tamanho • ◀▶ ajustar contraste';
     case 'DIAL': return 'Peça o número/linha mais nítido; o grau do meridiano está ao lado.';
     case 'ISHIHARA': return '◀▶ trocar número • Enter revelar/ocultar';
@@ -1092,6 +1127,7 @@ function openTest(t){
   S.test=t; S.acuityIndex=DEFAULT_ACUITY_INDEX;
   S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
   S.letterMode='row'; S.pointerIdx=0;
+  if(t.id==='ETDRS') S.acuityIndex=3; // carta completa começa no 20/200 (topo padrão)
   S.hudBig=false; if(hudTimer){ clearTimeout(hudTimer); hudTimer=null; }
   S.screen='TEST';
   // Fire TV: pede brilho máximo durante o exame (a Activity implementa se disponível).
