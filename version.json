@@ -1,4 +1,4 @@
 {
-  "version": 31,
-  "notes": "Proteção de tela: vídeo institucional em loop após 5 min sem ação; qualquer tecla retorna. Vídeo transmitido do GitHub (sem internet, mostra o logo pulsando)."
+  "version": 32,
+  "notes": "ETDRS carta completa: sempre termina na linha 20/20 — o topo é escolhido automaticamente para a maior carta que caiba na tela (20/200 quando possível), garantindo o 20/20 visível em qualquer distância."
 }
