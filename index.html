@@ -126,7 +126,7 @@
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 31;
+const WEB_VERSION = 32;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -494,10 +494,27 @@ function etdrsRowHeightPx(lm){
   return store.calibrated ? optotypeHeightPx(lm, store.distanceMm, store.pxPerMm)
                           : Math.min(H*0.9, H*0.5*Math.pow(10, lm-1.0));
 }
+const ETDRS_END = 13; // última linha da carta: 20/20 (logMAR 0,0)
+// Topo automático: a maior carta possível que TERMINA no 20/20 e cabe na altura.
+// Em tela/distância folgada começa no 20/200; se não couber, começa menor.
+function etdrsAutoTop(){
+  for(let top=3; top<=ETDRS_END; top++){
+    let y=H*0.05, ok=true;
+    for(let i=top; i<=ETDRS_END; i++){
+      const h=etdrsRowHeightPx(AcuityLogMar[i]);
+      if(y+h > H*0.97){ ok=false; break; }
+      y += h + (i<ETDRS_END ? etdrsRowHeightPx(AcuityLogMar[i+1]) : 0);
+    }
+    if(ok) return top;
+  }
+  return ETDRS_END;
+}
 function drawEtdrs(){
+  if(S.etdrsAutoTop){ S.acuityIndex = etdrsAutoTop(); S.etdrsAutoTop = false; }
+  S.acuityIndex = Math.min(S.acuityIndex, ETDRS_END);
   const labelF = Math.max(14, H*0.022);
   let idx = S.acuityIndex, y = H*0.05, drawn = 0;
-  while(idx < AcuityLogMar.length){
+  while(idx <= ETDRS_END){
     const lm = AcuityLogMar[idx], h = etdrsRowHeightPx(lm);
     if(y + h > H*0.97) break;
     const cy = y + h/2;
@@ -508,7 +525,7 @@ function drawEtdrs(){
       ctx.fillStyle='#999'; ctx.font = labelF+'px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
       ctx.fillText('20/'+snellenFeet(lm), W*0.012, cy);
     }
-    const nextH = idx+1 < AcuityLogMar.length ? etdrsRowHeightPx(AcuityLogMar[idx+1]) : 0;
+    const nextH = idx < ETDRS_END ? etdrsRowHeightPx(AcuityLogMar[idx+1]) : 0;
     y += h + nextH;
     idx++; drawn++;
   }
@@ -1138,7 +1155,7 @@ function openTest(t){
   S.test=t; S.acuityIndex=DEFAULT_ACUITY_INDEX;
   S.seed=(Math.random()*100000)|0; S.single=!!t.dir; S.contrast=1.0;
   S.letterMode='row'; S.pointerIdx=0;
-  if(t.id==='ETDRS') S.acuityIndex=3; // carta completa começa no 20/200 (topo padrão)
+  if(t.id==='ETDRS') S.etdrsAutoTop=true; // carta completa: topo automático, termina no 20/20
   S.hudBig=false; if(hudTimer){ clearTimeout(hudTimer); hudTimer=null; }
   S.screen='TEST';
   // Fire TV: pede brilho máximo durante o exame (a Activity implementa se disponível).
