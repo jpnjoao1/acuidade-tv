@@ -1,4 +1,4 @@
 {
-  "version": 30,
-  "notes": "Novo teste: ETDRS carta completa — várias linhas na tela em tamanho clínico real, 5 letras Sloan por linha, espaçamento padrão ETDRS e rótulo 20/x ao lado de cada linha. ▲▼ rola a linha do topo, ◀▶ embaralha."
+  "version": 31,
+  "notes": "Proteção de tela: vídeo institucional em loop após 5 min sem ação; qualquer tecla retorna. Vídeo transmitido do GitHub (sem internet, mostra o logo pulsando)."
 }

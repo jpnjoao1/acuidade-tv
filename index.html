@@ -103,6 +103,13 @@
     letter-spacing:1px; font-family:"Segoe UI", Roboto, Arial, sans-serif; }
   #warn { position:absolute; top:10px; left:50%; transform:translateX(-50%);
     color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
+
+  /* ---- Proteção de tela (vídeo em loop após 5 min sem ação) ---- */
+  #saver { position:absolute; inset:0; display:none; background:#000; }
+  #saver video { width:100%; height:100%; object-fit:contain; }
+  #saver .fb { position:absolute; inset:0; display:none; align-items:center; justify-content:center; }
+  #saver .fb img { height:22vh; border-radius:16px; animation:saverpulse 3.5s ease-in-out infinite; }
+  @keyframes saverpulse { 0%,100%{opacity:.30; transform:scale(1)} 50%{opacity:.85; transform:scale(1.05)} }
 </style>
 </head>
 <body>
@@ -111,11 +118,15 @@
   <div id="ui"></div>
   <div id="hud"></div>
   <div id="warn"></div>
+  <div id="saver">
+    <video id="saverVid" muted loop playsinline preload="none"></video>
+    <div class="fb"><img src="logo.jpg" alt=""></div>
+  </div>
 </div>
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 30;
+const WEB_VERSION = 31;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -1135,6 +1146,8 @@ function openTest(t){
 }
 const LETTER_CHARTS = ['SNELLEN','LOGMAR','NUMBERS','HOTV','LEANUM'];
 function handle(key){
+  if(saverOn){ saverStop(); return; }  // qualquer tecla sai da proteção de tela
+  idleReset();                          // qualquer ação reinicia a contagem de 5 min
   if(S.screen==='HOME'){
     const items = homeItems();
     const ni = gridNav(S.menuIndex, items.length, gridCols('HOME'), key);
@@ -1280,11 +1293,56 @@ window.addEventListener('keydown', e=>{
 window.__remote = function(key){ handle(key); };
 
 // =====================================================================================
+// PROTEÇÃO DE TELA — vídeo em loop após 5 min sem ação; qualquer tecla retorna.
+// O app da TV baixa só o index.html/logo.jpg, então o vídeo é transmitido do GitHub
+// quando a proteção ativa; sem internet, mostra o logo pulsando como reserva.
+// =====================================================================================
+const SAVER_IDLE_MS = 5*60*1000;
+const SAVER_SOURCES = [
+  'screensaver.mp4',   // versão web/PC (arquivo ao lado do index.html)
+  'https://raw.githubusercontent.com/jpnjoao1/acuidade-tv/main/screensaver.mp4',
+];
+const saver = document.getElementById('saver');
+const saverVid = document.getElementById('saverVid');
+let saverOn = false, idleTimer = null, saverSrcIdx = 0;
+function idleReset(){
+  if(idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(saverStart, SAVER_IDLE_MS);
+}
+function saverStart(){
+  saverOn = true; saverSrcIdx = 0;
+  saver.querySelector('.fb').style.display = 'none';
+  saverVid.style.display = 'block';
+  saver.style.display = 'block';
+  saverVid.src = SAVER_SOURCES[0];
+  try{ const pr = saverVid.play(); if(pr && pr.catch) pr.catch(function(){}); }catch(e){}
+}
+saverVid.addEventListener('error', function(){
+  if(!saverOn) return;
+  saverSrcIdx++;
+  if(saverSrcIdx < SAVER_SOURCES.length){
+    saverVid.src = SAVER_SOURCES[saverSrcIdx];
+    try{ const pr = saverVid.play(); if(pr && pr.catch) pr.catch(function(){}); }catch(e){}
+  } else { // sem vídeo disponível (offline): logo pulsando
+    saverVid.style.display = 'none';
+    saver.querySelector('.fb').style.display = 'flex';
+  }
+});
+function saverStop(){
+  saverOn = false;
+  try{ saverVid.pause(); }catch(e){}
+  saverVid.removeAttribute('src'); try{ saverVid.load(); }catch(e){}
+  saver.style.display = 'none';
+  idleReset();
+}
+
+// =====================================================================================
 // INÍCIO
 // =====================================================================================
 applyOrientation();
 resizeCanvas();
 render();
+idleReset();
 </script>
 </body>
 </html>
