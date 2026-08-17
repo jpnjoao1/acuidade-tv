@@ -1,4 +1,4 @@
 {
-  "version": 29,
-  "notes": "E direcional e Landolt: orientações realmente embaralhadas (sem padrão sequencial), na fila e no modo de 1 optótipo."
+  "version": 30,
+  "notes": "Novo teste: ETDRS carta completa — várias linhas na tela em tamanho clínico real, 5 letras Sloan por linha, espaçamento padrão ETDRS e rótulo 20/x ao lado de cada linha. ▲▼ rola a linha do topo, ◀▶ embaralha."
 }
