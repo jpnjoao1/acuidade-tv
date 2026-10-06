@@ -1,4 +1,4 @@
 {
-  "version": 32,
-  "notes": "ETDRS carta completa: sempre termina na linha 20/20 — o topo é escolhido automaticamente para a maior carta que caiba na tela (20/200 quando possível), garantindo o 20/20 visível em qualquer distância."
+  "version": 33,
+  "notes": "Proteção de tela corrigida no monitor vertical: o vídeo agora ocupa a tela inteira na posição certa (antes saía deitado e esticado em meia tela)."
 }

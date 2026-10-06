@@ -105,11 +105,17 @@
     color:#fff; background:#B00020; font-size:15px; display:none; padding:3px 10px; border-radius:5px; }
 
   /* ---- Proteção de tela (vídeo em loop após 5 min sem ação) ---- */
-  #saver { position:absolute; inset:0; display:none; background:#000; }
+  /* Fica FORA do #root e nunca é girada por CSS: o WebView da TV desenha o <video> numa
+     camada própria que ignora a rotação (no modo vertical ele saía deitado e esticado em
+     meia tela). No vertical toca-se um arquivo já gravado girado (screensaver-vertical.mp4,
+     1920x1080), que preenche a saída paisagem da TV sem nenhuma transformação. */
+  #saver { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:50; display:none; background:#000; }
   #saver video { width:100%; height:100%; object-fit:contain; }
-  #saver .fb { position:absolute; inset:0; display:none; align-items:center; justify-content:center; }
+  #saver .fb { position:absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; }
   #saver .fb img { height:22vh; border-radius:16px; animation:saverpulse 3.5s ease-in-out infinite; }
+  #saver.port .fb img { height:30vh; animation-name:saverpulseport; }
   @keyframes saverpulse { 0%,100%{opacity:.30; transform:scale(1)} 50%{opacity:.85; transform:scale(1.05)} }
+  @keyframes saverpulseport { 0%,100%{opacity:.30; transform:rotate(90deg) scale(1)} 50%{opacity:.85; transform:rotate(90deg) scale(1.05)} }
 </style>
 </head>
 <body>
@@ -118,15 +124,15 @@
   <div id="ui"></div>
   <div id="hud"></div>
   <div id="warn"></div>
-  <div id="saver">
-    <video id="saverVid" muted loop playsinline preload="none"></video>
-    <div class="fb"><img src="logo.jpg" alt=""></div>
-  </div>
+</div>
+<div id="saver">
+  <video id="saverVid" muted loop playsinline preload="none"></video>
+  <div class="fb"><img src="logo.jpg" alt=""></div>
 </div>
 <script>
 // Versão da interface. Precisa bater com web/version.json — é incrementada a cada
 // atualização publicada no GitHub Pages. O app do Fire TV compara para decidir se baixa.
-const WEB_VERSION = 32;
+const WEB_VERSION = 33;
 
 // =====================================================================================
 // NÚCLEO ÓPTICO (mesma matemática do app Android)
@@ -1315,10 +1321,15 @@ window.__remote = function(key){ handle(key); };
 // quando a proteção ativa; sem internet, mostra o logo pulsando como reserva.
 // =====================================================================================
 const SAVER_IDLE_MS = 5*60*1000;
-const SAVER_SOURCES = [
-  'screensaver.mp4',   // versão web/PC (arquivo ao lado do index.html)
-  'https://raw.githubusercontent.com/jpnjoao1/acuidade-tv/main/screensaver.mp4',
-];
+const SAVER_REMOTE = 'https://raw.githubusercontent.com/jpnjoao1/acuidade-tv/main/';
+// Um arquivo por orientação: o vídeo original é retrato (1080x1920). Com a tela na
+// vertical usa-se a cópia já girada 90° (1920x1080), exibida sem rotação por CSS.
+function saverSources(){
+  const f = store.orientation==='port' ? 'screensaver-vertical.mp4' : 'screensaver.mp4';
+  return [ f,                 // versão web/PC (arquivo ao lado do index.html)
+           SAVER_REMOTE + f ];
+}
+let SAVER_SOURCES = saverSources();
 const saver = document.getElementById('saver');
 const saverVid = document.getElementById('saverVid');
 let saverOn = false, idleTimer = null, saverSrcIdx = 0;
@@ -1328,6 +1339,8 @@ function idleReset(){
 }
 function saverStart(){
   saverOn = true; saverSrcIdx = 0;
+  SAVER_SOURCES = saverSources();
+  saver.classList.toggle('port', store.orientation==='port');
   saver.querySelector('.fb').style.display = 'none';
   saverVid.style.display = 'block';
   saver.style.display = 'block';
